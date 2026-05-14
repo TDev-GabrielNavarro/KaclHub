@@ -108,24 +108,10 @@ const initialState: PresupuestoState = {
     normativa: 'NSR-10 · POT Barranquilla',
     descripcion: '',
   },
-  anteproyecto: [
-    { id: '1', item: '', responsable: '', unidad: '', cantidad: 1, valorUnitario: 0 },
-    { id: '2', item: '', responsable: '', unidad: '', cantidad: 1, valorUnitario: 0 },
-  ],
+  anteproyecto: [],
   actividades: [],
   apus: [],
-  capitulos: [
-    { id: 'c1', numero: '01', nombre: 'Preliminares y descapote', valManual: 0 },
-    { id: 'c2', numero: '02', nombre: 'Movimiento de tierras / excavaciones', valManual: 0 },
-    { id: 'c3', numero: '03', nombre: 'Cimentación', valManual: 0 },
-    { id: 'c4', numero: '04', nombre: 'Estructura (concreto, acero)', valManual: 0 },
-    { id: 'c5', numero: '05', nombre: 'Mampostería de cerramiento', valManual: 0 },
-    { id: 'c6', numero: '06', nombre: 'Cubierta e impermeabilizaciones', valManual: 0 },
-    { id: 'c7', numero: '07', nombre: 'Instalaciones hidrosanitarias', valManual: 0 },
-    { id: 'c8', numero: '08', nombre: 'Instalaciones eléctricas', valManual: 0 },
-    { id: 'c9', numero: '09', nombre: 'Instalaciones especiales (gas, HVAC)', valManual: 0 },
-    { id: 'c10', numero: '10', nombre: 'Acabados en pisos', valManual: 0 },
-  ],
+  capitulos: [],
   aiu: {
     administracion: 12,
     imprevistos: 5,
@@ -148,12 +134,16 @@ interface PresupuestoContextType {
   addItem: (path: 'anteproyecto' | 'capitulos' | 'actividades', item: any) => void;
   removeItem: (path: 'anteproyecto' | 'capitulos' | 'actividades', id: string) => void;
   editItem: (path: 'anteproyecto' | 'capitulos' | 'actividades', id: string, data: any) => void;
+  removeChapterWithDependencies: (chapterId: string) => void;
+  addActivityWithAPU: (capituloId: string, nombre: string) => void;
+  removeActivityWithAPU: (activityId: string) => void;
   addAPU: (apu: Omit<APUActivity, 'id'>) => void;
   removeAPU: (id: string) => void;
   editAPU: (id: string, data: Partial<APUActivity>) => void;
   addAPUSubItem: (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', item: Omit<APUSubItem, 'id'>) => void;
   removeAPUSubItem: (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', itemId: string) => void;
   editAPUSubItem: (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', itemId: string, data: Partial<APUSubItem>) => void;
+  getAPUTotal: (apuId: string) => number;
 }
 
 const PresupuestoContext = createContext<PresupuestoContextType | undefined>(undefined);
@@ -181,14 +171,30 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
   // Derived State (Totals)
   const totals = useMemo(() => {
+    // Helper: calculate APU total for a given APU id
+    const getAPUTotal = (apuId: string | undefined): number => {
+      if (!apuId) return 0;
+      const apu = state.apus.find(a => a.id === apuId);
+      if (!apu) return 0;
+      const mat = apu.materiales.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0);
+      const mob = apu.manoDeObra.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0);
+      const eq  = apu.equipos.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0);
+      const subtotal = mat + mob + eq;
+      return subtotal + subtotal * ((apu.desperdicio || 0) / 100);
+    };
+
     const totalAnteproyecto = state.anteproyecto.reduce((acc, curr) => acc + (curr.valorUnitario * curr.cantidad), 0);
     
     const chapterTotals = state.capitulos.map(cap => {
       const activitiesInCap = state.actividades.filter(a => a.capituloId === cap.id);
-      const activitiesTotal = activitiesInCap.reduce((acc, curr) => acc + (curr.valorManual || 0) * (curr.cantidad || 0), 0);
+      const activitiesTotal = activitiesInCap.reduce((acc, curr) => {
+        // Use APU unit price if linked, otherwise fallback to valorManual
+        const unitPrice = curr.apuId ? getAPUTotal(curr.apuId) : (curr.valorManual || 0);
+        return acc + unitPrice * (curr.cantidad || 0);
+      }, 0);
       return {
         id: cap.id,
-        total: (cap.valManual || 0) + activitiesTotal
+        total: activitiesTotal
       };
     });
 
@@ -211,7 +217,8 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
       aiu,
       totalAIU,
       granTotal,
-      costoM2
+      costoM2,
+      _getAPUTotal: getAPUTotal, // internal helper exposed for provider
     };
   }, [state]);
 
@@ -310,8 +317,77 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }));
   };
 
+  // Add an activity AND auto-create a linked APU
+  const addActivityWithAPU = (capituloId: string, nombre: string) => {
+    const actId = crypto.randomUUID();
+    const apuId = crypto.randomUUID();
+    setState(prev => ({
+      ...prev,
+      actividades: [...prev.actividades, {
+        id: actId,
+        capituloId,
+        nombre: nombre || '',
+        unidad: '',
+        cantidad: 1,
+        apuId,
+        valorManual: 0,
+      }],
+      apus: [...prev.apus, {
+        id: apuId,
+        nombre: nombre || '',
+        unidad: '',
+        desperdicio: 5,
+        materiales: [],
+        manoDeObra: [],
+        equipos: [],
+      }]
+    }));
+  };
+
+  // Remove an activity AND its linked APU
+  const removeActivityWithAPU = (activityId: string) => {
+    setState(prev => {
+      const activity = prev.actividades.find(a => a.id === activityId);
+      return {
+        ...prev,
+        actividades: prev.actividades.filter(a => a.id !== activityId),
+        apus: activity?.apuId
+          ? prev.apus.filter(a => a.id !== activity.apuId)
+          : prev.apus,
+      };
+    });
+  };
+
+  // Remove a chapter AND all its activities AND all their linked APUs
+  const removeChapterWithDependencies = (chapterId: string) => {
+    setState(prev => {
+      const activitiesToRemove = prev.actividades.filter(a => a.capituloId === chapterId);
+      const apusToRemove = activitiesToRemove.map(a => a.apuId).filter(Boolean);
+      
+      return {
+        ...prev,
+        capitulos: prev.capitulos.filter(c => c.id !== chapterId),
+        actividades: prev.actividades.filter(a => a.capituloId !== chapterId),
+        apus: prev.apus.filter(a => !apusToRemove.includes(a.id)),
+      };
+    });
+  };
+
+  // Expose getAPUTotal as a function consumers can call
+  const getAPUTotalFn = (apuId: string): number => {
+    return totals._getAPUTotal(apuId);
+  };
+
   return (
-    <PresupuestoContext.Provider value={{ state, activeTab, setActiveTab, updateState, resetState, totals, addItem, removeItem, editItem, addAPU, removeAPU, editAPU, addAPUSubItem, removeAPUSubItem, editAPUSubItem }}>
+    <PresupuestoContext.Provider value={{
+      state, activeTab, setActiveTab, updateState, resetState, totals,
+      addItem, removeItem, editItem,
+      removeChapterWithDependencies,
+      addActivityWithAPU, removeActivityWithAPU,
+      addAPU, removeAPU, editAPU,
+      addAPUSubItem, removeAPUSubItem, editAPUSubItem,
+      getAPUTotal: getAPUTotalFn,
+    }}>
       {children}
     </PresupuestoContext.Provider>
   );
