@@ -28,6 +28,24 @@ export interface Capitulo {
   valManual: number;
 }
 
+export interface APUSubItem {
+  id: string;
+  descripcion: string;
+  unidad: string;
+  cantidad: number;
+  valorUnitario: number;
+}
+
+export interface APUActivity {
+  id: string;
+  nombre: string;
+  unidad: string;
+  desperdicio: number; // % factor de desperdicio
+  materiales: APUSubItem[];
+  manoDeObra: APUSubItem[];
+  equipos: APUSubItem[];
+}
+
 interface PresupuestoState {
   meta: {
     savedAt: string | null;
@@ -54,6 +72,7 @@ interface PresupuestoState {
   anteproyecto: AnteproyectoItem[];
   actividades: Activity[];
   capitulos: Capitulo[];
+  apus: APUActivity[];
   aiu: {
     administracion: number;
     imprevistos: number;
@@ -90,14 +109,22 @@ const initialState: PresupuestoState = {
     descripcion: '',
   },
   anteproyecto: [
-    { id: '1', item: 'Levantamiento topográfico', responsable: 'Topógrafo certificado', unidad: 'Global', cantidad: 1, valorUnitario: 2500000 },
-    { id: '2', item: 'Estudio de suelos y geotecnia', responsable: 'Ing. Geotécnico', unidad: 'Global', cantidad: 1, valorUnitario: 4500000 },
+    { id: '1', item: '', responsable: '', unidad: '', cantidad: 1, valorUnitario: 0 },
+    { id: '2', item: '', responsable: '', unidad: '', cantidad: 1, valorUnitario: 0 },
   ],
   actividades: [],
+  apus: [],
   capitulos: [
     { id: 'c1', numero: '01', nombre: 'Preliminares y descapote', valManual: 0 },
-    { id: 'c2', numero: '02', nombre: 'Movimiento de tierras', valManual: 0 },
+    { id: 'c2', numero: '02', nombre: 'Movimiento de tierras / excavaciones', valManual: 0 },
     { id: 'c3', numero: '03', nombre: 'Cimentación', valManual: 0 },
+    { id: 'c4', numero: '04', nombre: 'Estructura (concreto, acero)', valManual: 0 },
+    { id: 'c5', numero: '05', nombre: 'Mampostería de cerramiento', valManual: 0 },
+    { id: 'c6', numero: '06', nombre: 'Cubierta e impermeabilizaciones', valManual: 0 },
+    { id: 'c7', numero: '07', nombre: 'Instalaciones hidrosanitarias', valManual: 0 },
+    { id: 'c8', numero: '08', nombre: 'Instalaciones eléctricas', valManual: 0 },
+    { id: 'c9', numero: '09', nombre: 'Instalaciones especiales (gas, HVAC)', valManual: 0 },
+    { id: 'c10', numero: '10', nombre: 'Acabados en pisos', valManual: 0 },
   ],
   aiu: {
     administracion: 12,
@@ -121,6 +148,12 @@ interface PresupuestoContextType {
   addItem: (path: 'anteproyecto' | 'capitulos' | 'actividades', item: any) => void;
   removeItem: (path: 'anteproyecto' | 'capitulos' | 'actividades', id: string) => void;
   editItem: (path: 'anteproyecto' | 'capitulos' | 'actividades', id: string, data: any) => void;
+  addAPU: (apu: Omit<APUActivity, 'id'>) => void;
+  removeAPU: (id: string) => void;
+  editAPU: (id: string, data: Partial<APUActivity>) => void;
+  addAPUSubItem: (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', item: Omit<APUSubItem, 'id'>) => void;
+  removeAPUSubItem: (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', itemId: string) => void;
+  editAPUSubItem: (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', itemId: string, data: Partial<APUSubItem>) => void;
 }
 
 const PresupuestoContext = createContext<PresupuestoContextType | undefined>(undefined);
@@ -132,7 +165,10 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
     const saved = localStorage.getItem(LOCAL_STORAGE_KEY);
     if (saved) {
       try {
-        return JSON.parse(saved);
+        const parsed = JSON.parse(saved);
+        // Merge with initialState so any NEW fields added after a save
+        // always have a fallback default value (prevents undefined crashes).
+        return { ...initialState, ...parsed };
       } catch (e) {
         console.error("Error parsing saved state", e);
         return initialState;
@@ -232,8 +268,50 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
     }));
   };
 
+  const addAPU = (apu: Omit<APUActivity, 'id'>) => {
+    setState(prev => ({ ...prev, apus: [...prev.apus, { id: crypto.randomUUID(), ...apu }] }));
+  };
+
+  const removeAPU = (id: string) => {
+    setState(prev => ({ ...prev, apus: prev.apus.filter(a => a.id !== id) }));
+  };
+
+  const editAPU = (id: string, data: Partial<APUActivity>) => {
+    setState(prev => ({ ...prev, apus: prev.apus.map(a => a.id === id ? { ...a, ...data } : a) }));
+  };
+
+  const addAPUSubItem = (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', item: Omit<APUSubItem, 'id'>) => {
+    setState(prev => ({
+      ...prev,
+      apus: prev.apus.map(a => a.id === apuId
+        ? { ...a, [category]: [...a[category], { id: crypto.randomUUID(), ...item }] }
+        : a
+      )
+    }));
+  };
+
+  const removeAPUSubItem = (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', itemId: string) => {
+    setState(prev => ({
+      ...prev,
+      apus: prev.apus.map(a => a.id === apuId
+        ? { ...a, [category]: a[category].filter((item: APUSubItem) => item.id !== itemId) }
+        : a
+      )
+    }));
+  };
+
+  const editAPUSubItem = (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', itemId: string, data: Partial<APUSubItem>) => {
+    setState(prev => ({
+      ...prev,
+      apus: prev.apus.map(a => a.id === apuId
+        ? { ...a, [category]: a[category].map((item: APUSubItem) => item.id === itemId ? { ...item, ...data } : item) }
+        : a
+      )
+    }));
+  };
+
   return (
-    <PresupuestoContext.Provider value={{ state, activeTab, setActiveTab, updateState, resetState, totals, addItem, removeItem, editItem }}>
+    <PresupuestoContext.Provider value={{ state, activeTab, setActiveTab, updateState, resetState, totals, addItem, removeItem, editItem, addAPU, removeAPU, editAPU, addAPUSubItem, removeAPUSubItem, editAPUSubItem }}>
       {children}
     </PresupuestoContext.Provider>
   );

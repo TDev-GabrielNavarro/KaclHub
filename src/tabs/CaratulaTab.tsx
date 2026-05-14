@@ -82,9 +82,64 @@ export const CaratulaTab: React.FC = () => {
                     <option>Mixto</option>
                   </select>
                 </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-graphite">N° de pisos</label>
+                  <input
+                    type="number"
+                    name="numeroPisos"
+                    value={state.caratula.numeroPisos}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 rounded-xl border border-linen bg-cream/50 focus:bg-white focus:border-primary outline-none transition-all font-medium"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-graphite">Area construida (m²)</label>
+                  <input
+                    type="number"
+                    name="areaConstruida"
+                    value={state.caratula.areaConstruida}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 rounded-xl border border-linen bg-cream/50 focus:bg-white focus:border-primary outline-none transition-all font-medium"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-graphite">Sistema constructivo</label>
+                  <select
+                    name="sistemaConstructivo"
+                    value={state.caratula.sistemaConstructivo}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 rounded-xl border border-linen bg-cream/50 focus:bg-white focus:border-primary outline-none transition-all font-medium"
+                  >
+                    <option>Concreto Reforzado</option>
+                    <option>Acero</option>
+                    <option>Madera</option>
+                    <option>Mampostería</option>
+                    <option>Mixto</option>
+                  </select>
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-graphite">Normativa</label>
+                  <input
+                    type="text"
+                    name="normativa"
+                    value={state.caratula.normativa}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 rounded-xl border border-linen bg-cream/50 focus:bg-white focus:border-primary outline-none transition-all font-medium"
+                  />
+                </div>
+                <div className="lg:col-span-2 space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-graphite">Descripción</label>
+                  <textarea
+                    name="descripcion"
+                    placeholder="Escribe una breve descripción del proyecto"
+                    value={state.caratula.descripcion}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 min-h-24 max-h-38 resize-none rounded-xl border border-linen bg-cream/50 focus:bg-white focus:border-primary outline-none transition-all font-medium"
+                  />
+                </div>
               </div>
             </section>
-
+            
             {/* Sección B */}
             <section>
               <div className="flex items-center gap-2 mb-6 border-b border-linen pb-2">
