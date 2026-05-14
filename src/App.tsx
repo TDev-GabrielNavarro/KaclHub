@@ -34,13 +34,13 @@ const AppContent: React.FC = () => {
       <footer className="mt-20 py-12 border-t border-linen">
         <div className="max-w-7xl mx-auto px-6 flex flex-col md:flex-row justify-between items-center gap-8">
           <div>
-            <h4 className="font-serif text-xl font-bold text-forest">Structura</h4>
-            <p className="text-sm text-graphite/60 mt-1">Sistema de Presupuestación de Obra · 2025</p>
+            <h4 className="font-serif text-xl font-bold text-forest">KaclHub</h4>
+            <p className="text-sm text-graphite/60 mt-1">Sistema de Presupuestación de Obra · 2026</p>
           </div>
           <div className="flex gap-8 text-xs font-bold uppercase tracking-widest text-graphite/40">
-            <a href="#" className="hover:text-forest transition-colors">Términos y Condiciones</a>
-            <a href="#" className="hover:text-forest transition-colors">Privacidad</a>
-            <a href="#" className="hover:text-forest transition-colors">Ayuda</a>
+            <a href="#" className="hover:text-forest transition-colors">#</a>
+            <a href="#" className="hover:text-forest transition-colors">#</a>
+            <a href="#" className="hover:text-forest transition-colors">#</a>
           </div>
           <p className="text-[10px] text-graphite/30 uppercase font-bold">
             Versión 1.0.0 · Académico

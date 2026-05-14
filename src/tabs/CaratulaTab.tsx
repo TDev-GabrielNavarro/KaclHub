@@ -4,11 +4,15 @@ import { usePresupuesto } from '../context/PresupuestoContext';
 import { ArrowRight, MapPin, Calendar, Building, User } from 'lucide-react';
 
 export const CaratulaTab: React.FC = () => {
-  const { state, updateCaratula, setActiveTab } = usePresupuesto();
+  const { state, updateState, setActiveTab } = usePresupuesto();
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>) => {
     const { name, value } = e.target;
-    updateCaratula({ [name]: value });
+    // Handle numeric fields
+    const numericFields = ['areaConstruida', 'areaLote', 'numeroPisos'];
+    const val = numericFields.includes(name) ? parseFloat(value) || 0 : value;
+    
+    updateState(`caratula.${name}`, val);
   };
 
   return (
@@ -19,8 +23,8 @@ export const CaratulaTab: React.FC = () => {
       className="max-w-7xl mx-auto px-6 py-12"
     >
       <div className="bg-white rounded-2xl shadow-warm border border-linen overflow-hidden relative card-hover">
-        <div className="absolute top-0 right-0 p-12 opacity-[0.03] pointer-events-none">
-          <Building size={200} />
+        <div className="absolute top-0 right-0 p-12 opacity-[0.05] pointer-events-none">
+          <Building size={150} />
         </div>
 
         <div className="p-8 lg:p-12">

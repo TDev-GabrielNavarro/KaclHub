@@ -89,136 +89,229 @@ export const PresupuestoTab: React.FC = () => {
   );
 };
 
-const AnteproyectoSection: React.FC<{ items: any[] }> = ({ items }) => (
-  <motion.div
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20 }}
-    className="space-y-8"
-  >
-    <div className="relative">
-      <span className="absolute -top-10 -left-6 text-8xl font-serif font-bold text-forest/[0.03] pointer-events-none">01</span>
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-serif text-3xl font-bold text-forest">Anteproyecto · Estudios Previos</h3>
-          <p className="text-graphite">Estudios técnicos necesarios antes del inicio de obra física.</p>
+const AnteproyectoSection: React.FC<{ items: any[] }> = ({ items }) => {
+  const { addItem, removeItem, editItem, totals } = usePresupuesto();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="space-y-8"
+    >
+      <div className="relative">
+        <span className="absolute -top-10 -left-6 text-8xl font-serif font-bold text-forest/[0.03] pointer-events-none">01</span>
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-serif text-3xl font-bold text-forest">Anteproyecto · Estudios Previos</h3>
+            <p className="text-graphite">Estudios técnicos necesarios antes del inicio de obra física.</p>
+          </div>
+          <span className="px-4 py-1 bg-forest text-white text-[10px] font-bold uppercase tracking-widest rounded-full">
+            Independientes del AIU
+          </span>
         </div>
-        <span className="px-4 py-1 bg-forest text-white text-[10px] font-bold uppercase tracking-widest rounded-full">
-          Independientes del AIU
-        </span>
       </div>
-    </div>
 
-    <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-4 text-blue-800 text-sm">
-      <Info className="shrink-0" size={20} />
-      <p>Estos valores representan la inversión inicial en consultoría técnica y legal. Suelen contratarse por suma global.</p>
-    </div>
-
-    <div className="bg-white rounded-2xl shadow-warm border border-linen overflow-hidden card-hover">
-      <table className="w-full text-left border-collapse">
-        <thead>
-          <tr className="bg-pine text-white text-xs font-bold uppercase tracking-widest">
-            <th className="px-6 py-4">Estudio / Servicio</th>
-            <th className="px-6 py-4">Responsable</th>
-            <th className="px-6 py-4">Unidad</th>
-            <th className="px-6 py-4 text-right">Valor Unitario</th>
-            <th className="px-6 py-4 text-right">Total</th>
-            <th className="px-6 py-4"></th>
-          </tr>
-        </thead>
-        <tbody className="divide-y divide-linen">
-          {items.map((item) => (
-            <tr key={item.id} className="hover:bg-paper transition-colors">
-              <td className="px-6 py-4 font-medium">{item.item}</td>
-              <td className="px-6 py-4 text-sm text-graphite">{item.responsable}</td>
-              <td className="px-6 py-4 text-sm">{item.unidad}</td>
-              <td className="px-6 py-4 text-right font-medium tabular-nums">{formatCOP(item.valorUnitario)}</td>
-              <td className="px-6 py-4 text-right font-bold tabular-nums text-forest">{formatCOP(item.valorUnitario * item.cantidad)}</td>
-              <td className="px-6 py-4 text-right">
-                <button className="text-graphite/40 hover:text-danger transition-colors">
-                  <Trash2 size={16} />
-                </button>
-              </td>
-            </tr>
-          ))}
-        </tbody>
-        <tfoot>
-          <tr className="bg-paper font-bold text-forest uppercase tracking-widest text-xs">
-            <td colSpan={4} className="px-6 py-4 text-right">Total Anteproyecto</td>
-            <td className="px-6 py-4 text-right text-lg font-serif">
-              {formatCOP(items.reduce((acc, curr) => acc + curr.valorUnitario * curr.cantidad, 0))}
-            </td>
-            <td></td>
-          </tr>
-        </tfoot>
-      </table>
-      <div className="p-4 border-t border-linen flex justify-center">
-        <button className="flex items-center gap-2 text-sm font-bold text-pine hover:text-forest transition-colors">
-          <Plus size={16} />
-          Agregar nuevo registro
-        </button>
+      <div className="bg-blue-50 border border-blue-100 rounded-xl p-4 flex gap-4 text-blue-800 text-sm">
+        <Info className="shrink-0" size={20} />
+        <p>Estos valores representan la inversión inicial en consultoría técnica y legal. Suelen contratarse por suma global.</p>
       </div>
-    </div>
-  </motion.div>
-);
 
-const CapitulosSection: React.FC<{ items: any[] }> = ({ items }) => (
-  <motion.div
-    initial={{ opacity: 0, x: 20 }}
-    animate={{ opacity: 1, x: 0 }}
-    exit={{ opacity: 0, x: -20 }}
-    className="space-y-8"
-  >
-    <div className="relative">
-      <span className="absolute -top-10 -left-6 text-8xl font-serif font-bold text-forest/[0.03] pointer-events-none">04</span>
-      <div>
-        <h3 className="font-serif text-3xl font-bold text-forest">Capítulos · Costos Directos</h3>
-        <p className="text-graphite">Acumulado de costos por fase constructiva.</p>
-      </div>
-    </div>
-
-    <div className="grid grid-cols-1 gap-6">
       <div className="bg-white rounded-2xl shadow-warm border border-linen overflow-hidden card-hover">
         <table className="w-full text-left border-collapse">
           <thead>
             <tr className="bg-pine text-white text-xs font-bold uppercase tracking-widest">
-              <th className="px-6 py-4 w-16">N°</th>
-              <th className="px-6 py-4">Capítulo</th>
-              <th className="px-6 py-4 text-right">Valor APU</th>
-              <th className="px-6 py-4 text-right">Valor Manual</th>
-              <th className="px-6 py-4 text-right">Total Capítulo</th>
-              <th className="px-6 py-4 w-40 text-center">% del Total</th>
+              <th className="px-6 py-4">Estudio / Servicio</th>
+              <th className="px-6 py-4">Responsable</th>
+              <th className="px-6 py-4">Unidad</th>
+              <th className="px-6 py-4 text-right">Valor Unitario</th>
+              <th className="px-6 py-4 text-right">Total</th>
+              <th className="px-6 py-4"></th>
             </tr>
           </thead>
           <tbody className="divide-y divide-linen">
-            {items.map((item, idx) => (
-              <tr key={item.id} className="hover:bg-paper transition-colors group">
-                <td className="px-6 py-4 text-xs font-bold text-graphite">{item.numero}</td>
-                <td className="px-6 py-4 font-bold text-forest">{item.nombre}</td>
-                <td className="px-6 py-4 text-right text-sm text-graphite tabular-nums">$0</td>
-                <td className="px-6 py-4 text-right">
-                   <div className="flex justify-end">
-                    <input 
-                      type="number" 
-                      defaultValue={0}
-                      className="w-32 px-3 py-1 bg-paper/50 rounded-lg border border-transparent focus:border-primary focus:bg-white text-right font-medium outline-none transition-all tabular-nums"
-                    />
-                   </div>
-                </td>
-                <td className="px-6 py-4 text-right font-bold text-forest tabular-nums">$0</td>
+            {items.map((item) => (
+              <tr key={item.id} className="hover:bg-paper transition-colors">
                 <td className="px-6 py-4">
-                  <div className="flex items-center gap-3">
-                    <div className="flex-1 h-2 bg-linen rounded-full overflow-hidden">
-                      <div className="h-full bg-primary" style={{ width: idx === 0 ? '45%' : '20%' }} />
-                    </div>
-                    <span className="text-[10px] font-bold text-graphite">{idx === 0 ? '45%' : '0%'}</span>
-                  </div>
+                  <input 
+                    type="text" 
+                    value={item.item} 
+                    onChange={(e) => editItem('anteproyecto', item.id, { item: e.target.value })}
+                    className="w-full bg-transparent border-none focus:ring-0 font-medium outline-none"
+                  />
+                </td>
+                <td className="px-6 py-4">
+                  <input 
+                    type="text" 
+                    value={item.responsable} 
+                    onChange={(e) => editItem('anteproyecto', item.id, { responsable: e.target.value })}
+                    className="w-full bg-transparent border-none focus:ring-0 text-sm text-graphite outline-none"
+                  />
+                </td>
+                <td className="px-6 py-4">
+                  <input 
+                    type="text" 
+                    value={item.unidad} 
+                    onChange={(e) => editItem('anteproyecto', item.id, { unidad: e.target.value })}
+                    className="w-16 bg-transparent border-none focus:ring-0 text-sm outline-none"
+                  />
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <input 
+                    type="number" 
+                    value={item.valorUnitario} 
+                    onChange={(e) => editItem('anteproyecto', item.id, { valorUnitario: parseFloat(e.target.value) || 0 })}
+                    className="w-32 bg-transparent border-none text-right focus:ring-0 font-medium tabular-nums outline-none"
+                  />
+                </td>
+                <td className="px-6 py-4 text-right font-bold tabular-nums text-forest">
+                  {formatCOP(item.valorUnitario * item.cantidad)}
+                </td>
+                <td className="px-6 py-4 text-right">
+                  <button 
+                    onClick={() => removeItem('anteproyecto', item.id)}
+                    className="text-graphite/40 hover:text-danger transition-colors"
+                  >
+                    <Trash2 size={16} />
+                  </button>
                 </td>
               </tr>
             ))}
           </tbody>
+          <tfoot>
+            <tr className="bg-paper font-bold text-forest uppercase tracking-widest text-xs">
+              <td colSpan={4} className="px-6 py-4 text-right">Total Anteproyecto</td>
+              <td className="px-6 py-4 text-right text-lg font-serif">
+                {formatCOP(totals.totalAnteproyecto)}
+              </td>
+              <td></td>
+            </tr>
+          </tfoot>
         </table>
+        <div className="p-4 border-t border-linen flex justify-center">
+          <button 
+            onClick={() => addItem('anteproyecto', { item: 'Nuevo Estudio', responsable: '', unidad: 'Global', cantidad: 1, valorUnitario: 0 })}
+            className="flex items-center gap-2 text-sm font-bold text-pine hover:text-forest transition-colors"
+          >
+            <Plus size={16} />
+            Agregar nuevo registro
+          </button>
+        </div>
       </div>
-    </div>
-  </motion.div>
-);
+    </motion.div>
+  );
+};
+
+const CapitulosSection: React.FC<{ items: any[] }> = ({ items }) => {
+  const { addItem, removeItem, editItem, totals } = usePresupuesto();
+
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="space-y-8"
+    >
+      <div className="relative">
+        <span className="absolute -top-10 -left-6 text-8xl font-serif font-bold text-forest/[0.03] pointer-events-none">04</span>
+        <div>
+          <h3 className="font-serif text-3xl font-bold text-forest">Capítulos · Costos Directos</h3>
+          <p className="text-graphite">Acumulado de costos por fase constructiva.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 gap-6">
+        <div className="bg-white rounded-2xl shadow-warm border border-linen overflow-hidden card-hover">
+          <table className="w-full text-left border-collapse">
+            <thead>
+              <tr className="bg-pine text-white text-xs font-bold uppercase tracking-widest">
+                <th className="px-6 py-4 w-16">N°</th>
+                <th className="px-6 py-4">Capítulo</th>
+                <th className="px-6 py-4 text-right">Valor APU</th>
+                <th className="px-6 py-4 text-right">Valor Manual</th>
+                <th className="px-6 py-4 text-right">Total Capítulo</th>
+                <th className="px-6 py-4 w-40 text-center">% del Total</th>
+                <th className="px-6 py-4 w-12"></th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-linen">
+              {items.map((item, idx) => {
+                const capTotal = totals.chapterTotals.find((t: any) => t.id === item.id)?.total || 0;
+                const percent = totals.totalDirecto > 0 ? (capTotal / totals.totalDirecto) * 100 : 0;
+                
+                return (
+                  <tr key={item.id} className="hover:bg-paper transition-colors group">
+                    <td className="px-6 py-4 text-xs font-bold text-graphite">{item.numero}</td>
+                    <td className="px-6 py-4">
+                       <input 
+                        type="text" 
+                        value={item.nombre} 
+                        onChange={(e) => editItem('capitulos', item.id, { nombre: e.target.value })}
+                        className="w-full bg-transparent border-none focus:ring-0 font-bold text-forest outline-none"
+                      />
+                    </td>
+                    <td className="px-6 py-4 text-right text-sm text-graphite tabular-nums">
+                      {/* Logic for APU total will go here later */}
+                      $0
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                       <div className="flex justify-end">
+                        <input 
+                          type="number" 
+                          value={item.valManual}
+                          onChange={(e) => editItem('capitulos', item.id, { valManual: parseFloat(e.target.value) || 0 })}
+                          className="w-32 px-3 py-1 bg-paper/50 rounded-lg border border-transparent focus:border-primary focus:bg-white text-right font-medium outline-none transition-all tabular-nums"
+                        />
+                       </div>
+                    </td>
+                    <td className="px-6 py-4 text-right font-bold text-forest tabular-nums">
+                      {formatCOP(capTotal)}
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-3">
+                        <div className="flex-1 h-2 bg-linen rounded-full overflow-hidden">
+                          <motion.div 
+                            className="h-full bg-primary" 
+                            initial={{ width: 0 }}
+                            animate={{ width: `${percent}%` }}
+                          />
+                        </div>
+                        <span className="text-[10px] font-bold text-graphite">{percent.toFixed(1)}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-right">
+                      <button 
+                        onClick={() => removeItem('capitulos', item.id)}
+                        className="text-graphite/40 hover:text-danger opacity-0 group-hover:opacity-100 transition-all"
+                      >
+                        <Trash2 size={16} />
+                      </button>
+                    </td>
+                  </tr>
+                );
+              })}
+            </tbody>
+            <tfoot>
+              <tr className="bg-paper font-bold text-forest uppercase tracking-widest text-xs">
+                <td colSpan={4} className="px-6 py-4 text-right">Total Costos Directos</td>
+                <td className="px-6 py-4 text-right text-lg font-serif">
+                  {formatCOP(totals.totalDirecto)}
+                </td>
+                <td colSpan={2}></td>
+              </tr>
+            </tfoot>
+          </table>
+          <div className="p-4 border-t border-linen flex justify-center">
+            <button 
+              onClick={() => addItem('capitulos', { numero: (items.length + 1).toString().padStart(2, '0'), nombre: 'Nuevo Capítulo', valManual: 0 })}
+              className="flex items-center gap-2 text-sm font-bold text-pine hover:text-forest transition-colors"
+            >
+              <Plus size={16} />
+              Agregar nuevo capítulo
+            </button>
+          </div>
+        </div>
+      </div>
+    </motion.div>
+  );
+};

@@ -24,7 +24,7 @@ export const Header: React.FC = () => {
             <HardHat size={24} />
           </div>
           <div>
-            <h1 className="font-serif text-2xl font-bold tracking-tight">Structura</h1>
+            <h1 className="font-serif text-2xl font-bold tracking-tight">KaclHub</h1>
             <p className="text-[10px] uppercase tracking-widest text-primary font-bold">Barranquilla · Colombia</p>
           </div>
         </div>
