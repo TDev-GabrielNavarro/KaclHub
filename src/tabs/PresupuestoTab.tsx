@@ -18,6 +18,36 @@ import {
 } from 'lucide-react';
 import { cn, formatCOP } from '../utils/utils';
 
+const CurrencyInput = ({ value, onChange, className }: { value: number, onChange: (v: number) => void, className?: string }) => {
+  const [focused, setFocused] = useState(false);
+  const [localValue, setLocalValue] = useState(value.toString());
+
+  // Update local state when not focused to keep in sync with external changes
+  React.useEffect(() => {
+    if (!focused) {
+      setLocalValue(value.toString());
+    }
+  }, [value, focused]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    // Only allow numbers and decimal point
+    const raw = e.target.value.replace(/[^0-9.]/g, '');
+    setLocalValue(raw);
+    onChange(parseFloat(raw) || 0);
+  };
+
+  return (
+    <input
+      type="text"
+      value={focused ? localValue : formatCOP(value)}
+      onChange={handleChange}
+      onFocus={() => setFocused(true)}
+      onBlur={() => setFocused(false)}
+      className={className}
+    />
+  );
+};
+
 export const PresupuestoTab: React.FC = () => {
   const { state } = usePresupuesto();
   const [activeSubTab, setActiveSubTab] = useState(0);
@@ -68,26 +98,10 @@ export const PresupuestoTab: React.FC = () => {
       <div className="max-w-7xl mx-auto px-6 py-12">
         <AnimatePresence mode="wait">
           {activeSubTab === 0 && <AnteproyectoSection key="anteproyecto" items={state.anteproyecto} />}
-          {activeSubTab === 1 && <CapitulosSection key="capitulos" />}
-          {activeSubTab === 2 && <APUSection key="apu" />}
+          {activeSubTab === 1 && <CapitulosSection key="capitulos" onTabChange={setActiveSubTab} />}
+          {activeSubTab === 2 && <APUSection key="apu" onTabChange={setActiveSubTab} />}
           {activeSubTab === 3 && <CostosDirectosSection key="costos" items={state.capitulos} />}
-          {activeSubTab === 4 && (
-            <motion.div 
-              key="placeholder"
-              initial={{ opacity: 0 }} 
-              animate={{ opacity: 1 }} 
-              exit={{ opacity: 0 }}
-              className="bg-white rounded-2xl p-12 text-center border border-linen shadow-warm"
-            >
-              <div className="w-20 h-20 bg-paper rounded-full flex items-center justify-center mx-auto mb-6 text-graphite/40">
-                <Calculator size={40} />
-              </div>
-              <h3 className="font-serif text-2xl font-bold text-forest mb-2">Sección Profesional en Desarrollo</h3>
-              <p className="text-graphite max-w-md mx-auto">
-                Esta sección está siendo procesada para cumplir con los estándares de la normativa NSR-10.
-              </p>
-            </motion.div>
-          )}
+          {activeSubTab === 4 && <AIUSection key="aiu" />}
         </AnimatePresence>
       </div>
     </div>
@@ -168,16 +182,17 @@ const AnteproyectoSection: React.FC<{ items: any[] }> = ({ items }) => {
                 <td className="px-6 py-4 text-right">
                   <input 
                     type="number" 
+                    min="0"
+                    step="any"
                     value={item.cantidad} 
-                    onChange={(e) => editItem('anteproyecto', item.id, { cantidad: parseFloat(e.target.value) || 0 })}
+                    onChange={(e) => editItem('anteproyecto', item.id, { cantidad: Math.max(0, parseFloat(e.target.value) || 0) })}
                     className="w-20 bg-transparent border-none text-right focus:ring-0 font-medium tabular-nums outline-none pr-6"
                   />
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <input 
-                    type="number" 
+                  <CurrencyInput 
                     value={item.valorUnitario} 
-                    onChange={(e) => editItem('anteproyecto', item.id, { valorUnitario: parseFloat(e.target.value) || 0 })}
+                    onChange={(val) => editItem('anteproyecto', item.id, { valorUnitario: val })}
                     className="w-32 bg-transparent border-none text-right focus:ring-0 font-medium tabular-nums outline-none pr-6"
                   />
                 </td>
@@ -244,7 +259,7 @@ const CostosDirectosSection: React.FC<{ items: any[] }> = ({ items }) => {
               <tr className="bg-pine text-white text-xs font-bold uppercase tracking-widest">
                 <th className="px-6 py-4 w-16">N°</th>
                 <th className="px-6 py-4">Capítulo</th>
-                <th className="px-6 py-4 text-right">Total Capítulo</th>
+                <th className="px-6 py-4 text-right">Valor del Capítulo</th>
                 <th className="px-6 py-4 w-40 text-center">% del Total</th>
               </tr>
             </thead>
@@ -302,7 +317,7 @@ const CostosDirectosSection: React.FC<{ items: any[] }> = ({ items }) => {
 
 // ─── Capítulos Section (02 - define chapters + activities) ─────────────────
 
-const CapitulosSection: React.FC = () => {
+const CapitulosSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onTabChange }) => {
   const { state, addItem, removeItem, editItem, removeChapterWithDependencies, addActivityWithAPU, removeActivityWithAPU, getAPUTotal, totals } = usePresupuesto();
   const [openChapters, setOpenChapters] = useState<Record<string, boolean>>({});
 
@@ -424,8 +439,14 @@ const CapitulosSection: React.FC = () => {
                         <tbody className="divide-y divide-linen">
                           {activitiesInCap.length === 0 ? (
                             <tr>
-                              <td colSpan={6} className="px-6 py-8 text-center text-graphite/40 text-sm italic">
-                                Sin actividades — haz clic en "+ Agregar actividad"
+                              <td colSpan={6} className="px-6 py-8 text-center bg-paper/20">
+                                <p className="text-graphite/40 text-sm italic mb-3">Aún no hay actividades en este capítulo.</p>
+                                <button
+                                  onClick={() => addActivityWithAPU(cap.id, '')}
+                                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold text-pine bg-pine/5 hover:bg-pine hover:text-white transition-all active:scale-95"
+                                >
+                                  <Plus size={14} /> Crear primera actividad
+                                </button>
                               </td>
                             </tr>
                           ) : (
@@ -455,8 +476,10 @@ const CapitulosSection: React.FC = () => {
                                   <td className="px-6 py-3 text-right">
                                     <input
                                       type="number"
+                                      min="0"
+                                      step="any"
                                       value={act.cantidad}
-                                      onChange={(e) => editItem('actividades', act.id, { cantidad: parseFloat(e.target.value) || 0 })}
+                                      onChange={(e) => editItem('actividades', act.id, { cantidad: Math.max(0, parseFloat(e.target.value) || 0) })}
                                       className="w-24 bg-transparent outline-none text-right font-medium tabular-nums pr-4"
                                     />
                                   </td>
@@ -498,13 +521,20 @@ const CapitulosSection: React.FC = () => {
                       </table>
 
                       {/* Add activity button */}
-                      <div className="px-6 py-3 border-t border-linen bg-paper/30 flex">
+                      <div className="px-6 py-3 border-t border-linen bg-paper/30 flex justify-between items-center">
                         <button
                           onClick={() => addActivityWithAPU(cap.id, '')}
                           className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold text-pine bg-pine/5 hover:bg-pine hover:text-white hover:shadow-lg hover:shadow-pine/20 transition-all active:scale-95"
                         >
                           <Plus size={14} />
                           Agregar actividad
+                        </button>
+                        <button
+                          onClick={() => onTabChange(2)}
+                          className="flex items-center gap-2 px-4 py-1.5 rounded-full text-xs font-bold text-primary bg-primary/10 hover:bg-primary hover:text-forest transition-all active:scale-95"
+                        >
+                          <Calculator size={14} />
+                          Ir al APU
                         </button>
                       </div>
                     </motion.div>
@@ -574,7 +604,17 @@ const APUSubTable: React.FC<SubTableProps> = ({ apuId, category, items, label, a
         </thead>
         <tbody className="divide-y divide-linen">
           {items.length === 0 ? (
-            <tr><td colSpan={6} className="px-5 py-4 text-center text-graphite/30 text-xs italic">Sin ítems — agrega uno</td></tr>
+            <tr>
+              <td colSpan={6} className="px-5 py-6 text-center bg-paper/10">
+                <p className="text-graphite/40 text-xs italic mb-2">Aún no hay registros aquí.</p>
+                <button
+                  onClick={() => addAPUSubItem(apuId, category, { descripcion: '', unidad: '', cantidad: 1, valorUnitario: 0 })}
+                  className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-[10px] font-bold text-pine bg-pine/5 hover:bg-pine hover:text-white transition-all active:scale-95"
+                >
+                  <Plus size={12} /> Agregar primer ítem
+                </button>
+              </td>
+            </tr>
           ) : items.map(item => (
             <tr key={item.id} className="hover:bg-paper/40 transition-colors group">
               <td className="px-5 py-2">
@@ -588,13 +628,13 @@ const APUSubTable: React.FC<SubTableProps> = ({ apuId, category, items, label, a
                   className="w-14 bg-transparent outline-none text-sm placeholder:text-graphite/25" />
               </td>
               <td className="px-5 py-2 text-right">
-                <input type="number" value={item.cantidad}
-                  onChange={e => editAPUSubItem(apuId, category, item.id, { cantidad: parseFloat(e.target.value) || 0 })}
+                <input type="number" min="0" step="any" value={item.cantidad}
+                  onChange={e => editAPUSubItem(apuId, category, item.id, { cantidad: Math.max(0, parseFloat(e.target.value) || 0) })}
                   className="w-20 bg-transparent outline-none text-right text-sm tabular-nums pr-3" />
               </td>
               <td className="px-5 py-2 text-right">
-                <input type="number" value={item.valorUnitario}
-                  onChange={e => editAPUSubItem(apuId, category, item.id, { valorUnitario: parseFloat(e.target.value) || 0 })}
+                <CurrencyInput value={item.valorUnitario}
+                  onChange={val => editAPUSubItem(apuId, category, item.id, { valorUnitario: val })}
                   className="w-28 bg-transparent outline-none text-right text-sm tabular-nums pr-3" />
               </td>
               <td className="px-5 py-2 text-right text-sm font-medium tabular-nums text-forest">
@@ -621,12 +661,20 @@ const APUSubTable: React.FC<SubTableProps> = ({ apuId, category, items, label, a
   );
 };
 
-const APUSection: React.FC = () => {
-  const { state, addAPU, removeAPU, editAPU } = usePresupuesto();
+const APUSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onTabChange }) => {
+  const { state, removeAPU, editAPU } = usePresupuesto();
   const [openAPUs, setOpenAPUs] = useState<Record<string, boolean>>({});
+  const [selectedChapterId, setSelectedChapterId] = useState<string | 'all'>('all');
+  
   const fmt = (n: number) => new Intl.NumberFormat('es-CO', { style: 'currency', currency: 'COP', maximumFractionDigits: 0 }).format(n);
 
   const toggleAPU = (id: string) => setOpenAPUs(prev => ({ ...prev, [id]: !prev[id] }));
+
+  const filteredAPUs = state.apus.filter(apu => {
+    if (selectedChapterId === 'all') return true;
+    const linkedActivity = state.actividades.find(a => a.apuId === apu.id);
+    return linkedActivity?.capituloId === selectedChapterId;
+  });
 
   return (
     <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} exit={{ opacity: 0, x: -20 }} className="space-y-8">
@@ -638,12 +686,33 @@ const APUSection: React.FC = () => {
             <h3 className="font-serif text-3xl font-bold text-forest">Análisis de Precios Unitarios</h3>
             <p className="text-graphite">Desglose de materiales, mano de obra y equipos por actividad.</p>
           </div>
-          <button
-            onClick={() => addAPU({ nombre: '', unidad: 'm²', desperdicio: 5, materiales: [], manoDeObra: [], equipos: [] })}
-            className="flex items-center gap-2 px-6 py-3 rounded-full bg-forest text-white text-xs font-bold uppercase tracking-widest hover:bg-forest/80 hover:shadow-lg transition-all active:scale-95"
-          >
-            <Plus size={16} /> Nuevo APU
-          </button>
+          <div className="flex flex-wrap gap-2 justify-end max-w-md">
+            <button
+              onClick={() => setSelectedChapterId('all')}
+              className={cn(
+                "px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all",
+                selectedChapterId === 'all' 
+                  ? "bg-forest text-white shadow-lg" 
+                  : "bg-linen text-graphite hover:bg-forest/5"
+              )}
+            >
+              Todos
+            </button>
+            {state.capitulos.map(cap => (
+              <button
+                key={cap.id}
+                onClick={() => setSelectedChapterId(cap.id)}
+                className={cn(
+                  "px-4 py-1.5 rounded-full text-[10px] font-bold uppercase tracking-widest transition-all",
+                  selectedChapterId === cap.id 
+                    ? "bg-primary text-forest shadow-lg" 
+                    : "bg-linen text-graphite hover:bg-forest/5"
+                )}
+              >
+                Cap {cap.numero}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
 
@@ -656,20 +725,25 @@ const APUSection: React.FC = () => {
       {state.apus.length === 0 && (
         <div className="bg-white rounded-2xl border border-linen p-16 text-center shadow-warm">
           <Calculator size={48} className="mx-auto text-graphite/20 mb-4" />
-          <p className="text-graphite font-medium text-lg">No hay APUs creados</p>
-          <p className="text-graphite/50 text-sm mt-1 mb-6">Crea el primer análisis de precios para tu proyecto</p>
+          <p className="text-graphite font-medium text-lg">No hay Análisis de Precios Unitarios (APU)</p>
+          <p className="text-graphite/50 text-sm mt-1 mb-6">Las APUs se generan y vinculan de forma automática cuando creas actividades en tus capítulos.</p>
           <button
-            onClick={() => addAPU({ nombre: '', unidad: 'm²', desperdicio: 5, materiales: [], manoDeObra: [], equipos: [] })}
+            onClick={() => onTabChange(1)}
             className="inline-flex items-center gap-2 px-6 py-3 rounded-full bg-forest text-white text-xs font-bold uppercase tracking-widest hover:bg-forest/80 transition-all"
           >
-            <Plus size={16} /> Crear primer APU
+            <Layers size={16} /> Ir a Capítulos
           </button>
         </div>
       )}
 
       {/* APU Accordion list */}
       <div className="space-y-4">
-        {state.apus.map((apu, idx) => {
+        {filteredAPUs.length === 0 && state.apus.length > 0 && (
+          <div className="bg-white rounded-2xl border border-linen p-12 text-center shadow-warm">
+            <p className="text-graphite font-medium">No hay actividades en este capítulo.</p>
+          </div>
+        )}
+        {filteredAPUs.map((apu, idx) => {
           const t = calcAPUTotals(apu);
           const isOpen = openAPUs[apu.id] !== false; // default open
           
@@ -730,9 +804,11 @@ const APUSection: React.FC = () => {
                       <div className="flex items-center gap-1">
                         <input
                           type="number"
+                          min="0"
+                          step="any"
                           value={apu.desperdicio}
                           onClick={e => e.stopPropagation()}
-                          onChange={e => editAPU(apu.id, { desperdicio: parseFloat(e.target.value) || 0 })}
+                          onChange={e => editAPU(apu.id, { desperdicio: Math.max(0, parseFloat(e.target.value) || 0) })}
                           className="w-12 bg-white/10 rounded px-1.5 text-xs text-white font-bold outline-none text-right border border-transparent focus:border-primary/50"
                         />
                         <span className="text-xs text-white/50">%</span>
@@ -813,6 +889,113 @@ const APUSection: React.FC = () => {
             </div>
           );
         })}
+      </div>
+    </motion.div>
+  );
+};
+
+const AIUSection: React.FC = () => {
+  const { state, updateState, totals } = usePresupuesto();
+  
+  return (
+    <motion.div
+      initial={{ opacity: 0, x: 20 }}
+      animate={{ opacity: 1, x: 0 }}
+      exit={{ opacity: 0, x: -20 }}
+      className="space-y-8"
+    >
+      <div className="relative">
+        <span className="absolute -top-10 -left-6 text-8xl font-serif font-bold text-forest/[0.03] pointer-events-none">05</span>
+        <div>
+          <h3 className="font-serif text-3xl font-bold text-forest">A.I.U. y Gran Total</h3>
+          <p className="text-graphite">Cálculo de Administración, Imprevistos y Utilidad sobre el Costo Directo.</p>
+        </div>
+      </div>
+
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+        {/* Left column: AIU Inputs */}
+        <div className="bg-white rounded-2xl shadow-warm border border-linen p-8 space-y-6 card-hover">
+          <div className="flex items-center justify-between pb-4 border-b border-linen">
+            <h4 className="font-bold text-forest uppercase tracking-widest text-sm">Porcentajes AIU</h4>
+            <span className="text-xs font-bold bg-primary/20 text-forest px-3 py-1 rounded-full">
+              Base: {formatCOP(totals.totalDirecto)}
+            </span>
+          </div>
+
+          <div className="space-y-4">
+            {[
+              { id: 'administracion', label: 'Administración', color: 'bg-blue-50 text-blue-700', border: 'focus:border-blue-500' },
+              { id: 'imprevistos', label: 'Imprevistos', color: 'bg-amber-50 text-amber-700', border: 'focus:border-amber-500' },
+              { id: 'utilidad', label: 'Utilidad', color: 'bg-emerald-50 text-emerald-700', border: 'focus:border-emerald-500' },
+            ].map(item => (
+              <div key={item.id} className="flex items-center justify-between gap-4 p-4 rounded-xl bg-paper border border-linen">
+                <div className="flex-1">
+                  <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${item.color} mb-1 inline-block`}>
+                    {item.label}
+                  </span>
+                  <p className="text-sm text-graphite font-medium">Porcentaje aplicado</p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <input
+                    type="number"
+                    min="0"
+                    step="0.1"
+                    value={state.aiu[item.id as keyof typeof state.aiu]}
+                    onChange={(e) => updateState(`aiu.${item.id}`, Math.max(0, parseFloat(e.target.value) || 0))}
+                    className={`w-20 px-3 py-2 text-right font-bold text-lg rounded-lg border border-linen bg-white outline-none transition-all ${item.border} focus:ring-4 focus:ring-black/5`}
+                  />
+                  <span className="text-graphite font-bold">%</span>
+                </div>
+                <div className="w-32 text-right">
+                  <p className="text-[10px] text-graphite uppercase tracking-widest mb-1">Valor</p>
+                  <p className="font-bold text-forest tabular-nums">
+                    {formatCOP(totals.aiu[item.id as keyof typeof totals.aiu])}
+                  </p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {/* Right column: Summary */}
+        <div className="space-y-6">
+          <div className="bg-forest text-white rounded-2xl p-8 shadow-2xl relative overflow-hidden">
+            <div className="absolute -top-24 -right-24 text-[200px] text-white/5 pointer-events-none">
+              <Percent />
+            </div>
+            
+            <h4 className="text-sm font-bold text-white/50 uppercase tracking-widest mb-8">Resumen Financiero</h4>
+            
+            <div className="space-y-4 relative z-10">
+              <div className="flex justify-between items-end pb-4 border-b border-white/10">
+                <span className="text-white/70">Costo Directo</span>
+                <span className="font-serif text-2xl tabular-nums">{formatCOP(totals.totalDirecto)}</span>
+              </div>
+              
+              <div className="flex justify-between items-end pb-4 border-b border-white/10">
+                <span className="text-white/70">Total A.I.U. <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded ml-2">{(state.aiu.administracion + state.aiu.imprevistos + state.aiu.utilidad).toFixed(1)}%</span></span>
+                <span className="font-serif text-2xl tabular-nums">{formatCOP(totals.totalAIU)}</span>
+              </div>
+              
+              <div className="pt-4">
+                <span className="text-primary text-sm font-bold uppercase tracking-widest block mb-1">Gran Total Presupuesto</span>
+                <span className="font-serif text-5xl font-bold text-white tabular-nums tracking-tight">
+                  {formatCOP(totals.granTotal)}
+                </span>
+              </div>
+            </div>
+          </div>
+          
+          <div className="bg-white rounded-2xl p-6 border border-linen shadow-warm flex items-start gap-4">
+            <Info className="text-primary shrink-0 mt-1" />
+            <div>
+              <p className="text-sm text-graphite leading-relaxed">
+                El <strong>Costo Directo</strong> representa todos los gastos intrínsecos de la obra (materiales, mano de obra, equipos). 
+                El <strong>A.I.U.</strong> calcula los gastos administrativos, imprevistos y el margen de ganancia sobre ese costo directo.
+              </p>
+            </div>
+          </div>
+        </div>
       </div>
     </motion.div>
   );

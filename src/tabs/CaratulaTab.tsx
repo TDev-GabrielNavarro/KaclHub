@@ -10,7 +10,7 @@ export const CaratulaTab: React.FC = () => {
     const { name, value } = e.target;
     // Handle numeric fields
     const numericFields = ['areaConstruida', 'areaLote', 'numeroPisos'];
-    const val = numericFields.includes(name) ? parseFloat(value) || 0 : value;
+    const val = numericFields.includes(name) ? Math.max(0, parseFloat(value) || 0) : value;
     
     updateState(`caratula.${name}`, val);
   };
