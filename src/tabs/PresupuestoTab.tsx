@@ -60,6 +60,31 @@ export const PresupuestoTab: React.FC = () => {
     { id: 4, label: '05 AIU', icon: Percent },
   ];
 
+  const progress = React.useMemo(() => {
+    let score = 0;
+    
+    // 1. Capítulos existen (10%)
+    if (state.capitulos.length > 0) score += 10;
+    
+    // 2. Actividades existen (20%)
+    if (state.actividades.length > 0) score += 20;
+    
+    // 3. APUs desglosados (50%)
+    if (state.apus.length > 0) {
+      const apusCompletos = state.apus.filter(apu => 
+        apu.materiales.length > 0 || apu.manoDeObra.length > 0 || apu.equipos.length > 0
+      ).length;
+      score += (apusCompletos / state.apus.length) * 50;
+    }
+    
+    // 4. AIU definido y con actividades (20%)
+    if (state.actividades.length > 0 && (state.aiu.administracion > 0 || state.aiu.imprevistos > 0 || state.aiu.utilidad > 0)) {
+      score += 20;
+    }
+    
+    return Math.round(score);
+  }, [state]);
+
   return (
     <div className="min-h-screen">
       {/* Sub Navigation */}
@@ -87,10 +112,10 @@ export const PresupuestoTab: React.FC = () => {
               <motion.div 
                 className="h-full bg-primary" 
                 initial={{ width: 0 }}
-                animate={{ width: '40%' }}
+                animate={{ width: `${progress}%` }}
               />
             </div>
-            <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">40% Completado</span>
+            <span className="text-[10px] text-white/40 font-bold uppercase tracking-widest">{progress}% Completado</span>
           </div>
         </div>
       </div>
@@ -417,14 +442,16 @@ const CapitulosSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onT
               </div>
 
                 {/* Activities Table */}
-                <AnimatePresence>
+                <AnimatePresence initial={false}>
                   {isOpen && (
                     <motion.div
                       initial={{ height: 0, opacity: 0 }}
                       animate={{ height: 'auto', opacity: 1 }}
                       exit={{ height: 0, opacity: 0 }}
-                      transition={{ duration: 0.2 }}
+                      transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+                      className="overflow-hidden"
                     >
+                      <div>
                       <table className="w-full text-left border-collapse">
                         <thead>
                           <tr className="bg-paper text-graphite text-[10px] font-bold uppercase tracking-widest border-b border-linen">
@@ -537,12 +564,21 @@ const CapitulosSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onT
                           Ir al APU
                         </button>
                       </div>
+                      </div>
                     </motion.div>
                   )}
                 </AnimatePresence>
               </div>
             );
           })}
+          
+          <button
+            onClick={() => addItem('capitulos', { numero: String(state.capitulos.length + 1).padStart(2, '0'), nombre: '', valManual: 0 })}
+            className="w-full flex items-center justify-center gap-2 px-6 py-6 rounded-2xl border-2 border-dashed border-linen hover:border-primary hover:bg-primary/5 text-graphite/40 hover:text-primary transition-all active:scale-95 group"
+          >
+            <Plus size={20} className="group-hover:rotate-90 transition-transform" />
+            <span className="font-bold uppercase tracking-widest text-xs">Agregar Nuevo Capítulo</span>
+          </button>
         </div>
       )}
 
@@ -834,16 +870,17 @@ const APUSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onTabChan
               </div>
 
               {/* APU Body */}
-              <AnimatePresence>
+              <AnimatePresence initial={false}>
                 {isOpen && (
                   <motion.div
                     initial={{ height: 0, opacity: 0 }}
                     animate={{ height: 'auto', opacity: 1 }}
                     exit={{ height: 0, opacity: 0 }}
-                    transition={{ duration: 0.25 }}
-                    className="px-6 py-6 space-y-4 bg-paper/30"
+                    transition={{ duration: 0.3, ease: [0.04, 0.62, 0.23, 0.98] }}
+                    className="overflow-hidden bg-transparent"
                   >
-                    <APUSubTable apuId={apu.id} category="materiales" items={apu.materiales}
+                    <div className="px-6 py-6 space-y-4 bg-paper/30">
+                      <APUSubTable apuId={apu.id} category="materiales" items={apu.materiales}
                       label={<span className="flex items-center gap-2"><Package size={14} /> Materiales</span>}
                       accentColor="bg-amber-50 text-amber-800 border-b border-amber-100" />
                     <APUSubTable apuId={apu.id} category="manoDeObra" items={apu.manoDeObra}
@@ -883,6 +920,7 @@ const APUSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onTabChan
                         </div>
                       </div>
                     </div>
+                  </div>
                   </motion.div>
                 )}
               </AnimatePresence>

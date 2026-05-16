@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 
-export type TabType = 'caratula' | 'presupuesto' | 'resumen';
+export type TabType = 'caratula' | 'presupuesto' | 'cronograma'| 'resumen';
 
 export interface AnteproyectoItem {
   id: string;
