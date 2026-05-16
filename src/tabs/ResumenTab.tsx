@@ -1,17 +1,15 @@
-import React from 'react';
+import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
 import { 
   PieChart, 
   Pie, 
   Cell, 
   ResponsiveContainer, 
-  BarChart, 
-  Bar, 
-  XAxis, 
-  YAxis, 
   Tooltip as ReTooltip, 
   AreaChart, 
   Area, 
+  XAxis, 
+  YAxis,
   CartesianGrid 
 } from 'recharts';
 import { 
@@ -23,23 +21,45 @@ import {
   Zap
 } from 'lucide-react';
 import { formatCOP, cn } from '../utils/utils';
+import { usePresupuesto } from '../context/PresupuestoContext';
+import { generateProfessionalReport } from '../utils/pdfGenerator';
 
 export const ResumenTab: React.FC = () => {
-  const dataPie = [
-    { name: 'Costos Directos', value: 75, color: '#1a1a1a' },
-    { name: 'Adm (A)', value: 12, color: '#fec31b' },
-    { name: 'Imp (I)', value: 5, color: '#71717a' },
-    { name: 'Util (U)', value: 8, color: '#e4e4e7' },
-  ];
+  const { state, totals } = usePresupuesto();
 
-  const dataCurve = [
-    { month: 'M1', investment: 50 },
-    { month: 'M2', investment: 120 },
-    { month: 'M3', investment: 300 },
-    { month: 'M4', investment: 600 },
-    { month: 'M5', investment: 850 },
-    { month: 'M6', investment: 1200 },
-  ];
+  const dataPie = useMemo(() => [
+    { name: 'Costos Directos', value: totals.totalDirecto, color: '#1a1a1a' },
+    { name: 'Adm (A)', value: totals.aiu.administracion, color: '#fec31b' },
+    { name: 'Imp (I)', value: totals.aiu.imprevistos, color: '#71717a' },
+    { name: 'Util (U)', value: totals.aiu.utilidad, color: '#e4e4e7' },
+  ], [totals]);
+
+  const duracionMeses = state.cronograma.duracionMeses || 12;
+  const mesesArray = Array.from({ length: duracionMeses }, (_, i) => i + 1);
+
+  const dataCurve = useMemo(() => {
+    let acumulado = 0;
+    return mesesArray.map(mes => {
+      let inversionMes = 0;
+      state.capitulos.forEach(cap => {
+        const activos = cap.mesesActivos || mesesArray;
+        if (activos.includes(mes) && activos.length > 0) {
+          const capTotal = totals.chapterTotals.find((t: any) => t.id === cap.id)?.total || 0;
+          inversionMes += (capTotal / activos.length);
+        }
+      });
+      acumulado += inversionMes;
+      return {
+        month: `M${mes}`,
+        investment: acumulado,
+        rawInvestment: inversionMes
+      };
+    });
+  }, [state.capitulos, totals.chapterTotals, mesesArray]);
+
+  const handleExport = () => {
+    generateProfessionalReport(state, totals);
+  };
 
   return (
     <motion.div
@@ -47,7 +67,7 @@ export const ResumenTab: React.FC = () => {
       animate={{ opacity: 1 }}
       className="max-w-7xl mx-auto px-6 py-12 space-y-12"
     >
-      {/* Sticky Summary Bar (simplified for this container) */}
+      {/* Sticky Summary Bar */}
       <div className="sticky top-[120px] z-40 bg-pine text-white px-8 py-4 rounded-2xl shadow-2xl flex flex-wrap items-center justify-between gap-6 overflow-hidden">
         <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
         
@@ -57,22 +77,25 @@ export const ResumenTab: React.FC = () => {
           </div>
           <div>
             <p className="text-[10px] uppercase tracking-widest text-primary/80 font-bold">Total Presupuesto</p>
-            <h4 className="text-2xl font-serif font-bold">$1.240.500.000</h4>
+            <h4 className="text-2xl font-serif font-bold">{formatCOP(totals.granTotal)}</h4>
           </div>
         </div>
 
         <div className="flex gap-12">
           <div className="text-center">
             <p className="text-[10px] uppercase tracking-widest text-white/50 font-bold">Costo / m²</p>
-            <p className="font-bold tabular-nums text-primary">$1.850.000</p>
+            <p className="font-bold tabular-nums text-primary">{formatCOP(totals.costoM2)}</p>
           </div>
           <div className="text-center">
             <p className="text-[10px] uppercase tracking-widest text-white/50 font-bold">Duración</p>
-            <p className="font-bold">12 Meses</p>
+            <p className="font-bold">{duracionMeses} Meses</p>
           </div>
         </div>
 
-        <button className="px-8 py-3 bg-primary text-forest rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-primary-light transition-all shadow-lg shadow-primary/20">
+        <button 
+          onClick={handleExport}
+          className="px-8 py-3 bg-primary text-forest rounded-full text-xs font-bold uppercase tracking-widest flex items-center gap-2 hover:bg-primary-light transition-all shadow-lg shadow-primary/20"
+        >
           <Download size={16} />
           Exportar PDF
         </button>
@@ -80,10 +103,31 @@ export const ResumenTab: React.FC = () => {
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-        <KPICard label="Costos Directos" value="$930.375.000" sub="75% del total" icon={DollarSign} />
-        <KPICard label="Administración" value="$148.860.000" sub="12% A" icon={Zap} color="border-primary" />
-        <KPICard label="Imprevistos" value="$62.025.000" sub="5% I" icon={Clock} />
-        <KPICard label="Utilidad" value="$99.240.000" sub="8% U" icon={TrendingUp} />
+        <KPICard 
+          label="Costos Directos" 
+          value={formatCOP(totals.totalDirecto)} 
+          sub={`${totals.granTotal > 0 ? ((totals.totalDirecto / totals.granTotal) * 100).toFixed(1) : 0}% del total`} 
+          icon={DollarSign} 
+        />
+        <KPICard 
+          label="Administración" 
+          value={formatCOP(totals.aiu.administracion)} 
+          sub={`${state.aiu.administracion}% A`} 
+          icon={Zap} 
+          color="border-primary" 
+        />
+        <KPICard 
+          label="Imprevistos" 
+          value={formatCOP(totals.aiu.imprevistos)} 
+          sub={`${state.aiu.imprevistos}% I`} 
+          icon={Clock} 
+        />
+        <KPICard 
+          label="Utilidad" 
+          value={formatCOP(totals.aiu.utilidad)} 
+          sub={`${state.aiu.utilidad}% U`} 
+          icon={TrendingUp} 
+        />
       </div>
 
       {/* Charts Block */}
@@ -104,7 +148,7 @@ export const ResumenTab: React.FC = () => {
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
                 </Pie>
-                <ReTooltip />
+                <ReTooltip formatter={(value: number) => formatCOP(value)} />
               </PieChart>
             </ResponsiveContainer>
           </div>
@@ -132,8 +176,8 @@ export const ResumenTab: React.FC = () => {
                 <XAxis dataKey="month" stroke="#4a4a42" />
                 <YAxis hide />
                 <CartesianGrid strokeDasharray="3 3" stroke="#e8e4dc" />
-                <ReTooltip />
-                <Area type="monotone" dataKey="investment" stroke="#fec31b" strokeWidth={3} fillOpacity={1} fill="url(#colorInv)" />
+                <ReTooltip formatter={(value: number) => formatCOP(value)} />
+                <Area type="monotone" dataKey="investment" stroke="#fec31b" strokeWidth={3} fillOpacity={1} fill="url(#colorInv)" name="Acumulado" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
@@ -142,7 +186,10 @@ export const ResumenTab: React.FC = () => {
 
       {/* Export Section */}
       <div className="pt-12">
-        <button className="w-full relative group overflow-hidden bg-forest rounded-3xl p-12 text-center transition-all hover:bg-pine">
+        <button 
+          onClick={handleExport}
+          className="w-full relative group overflow-hidden bg-forest rounded-3xl p-12 text-center transition-all hover:bg-pine"
+        >
           <div className="absolute inset-0 opacity-[0.05] pointer-events-none bg-[url('https://grainy-gradients.vercel.app/noise.svg')]" />
           <div className="relative z-10 flex flex-col items-center">
             <div className="w-20 h-20 bg-primary/10 rounded-full flex items-center justify-center mb-6 group-hover:scale-110 transition-transform">
@@ -154,7 +201,7 @@ export const ResumenTab: React.FC = () => {
             </p>
             <div className="flex flex-wrap justify-center gap-x-8 gap-y-4 text-xs font-bold uppercase tracking-widest text-primary">
               <span className="flex items-center gap-2">● Carátula</span>
-              <span className="flex items-center gap-2">● APU Detallado</span>
+              <span className="flex items-center gap-2">● Presupuesto Global</span>
               <span className="flex items-center gap-2">● Cronograma</span>
               <span className="flex items-center gap-2">● AIU Sustentado</span>
             </div>
