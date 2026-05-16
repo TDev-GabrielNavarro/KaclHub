@@ -219,6 +219,20 @@ export const CaratulaTab: React.FC = () => {
                     className="w-full px-4 py-3 rounded-xl border border-linen bg-cream/50 focus:bg-white focus:border-primary outline-none transition-all font-medium"
                   />
                 </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-graphite flex items-center gap-2">
+                    <Calendar size={14} /> Duración Estimada (Meses)
+                  </label>
+                  <input
+                    type="number"
+                    min="1"
+                    name="duracionMeses"
+                    value={state.cronograma.duracionMeses}
+                    onChange={(e) => updateState('cronograma.duracionMeses', Math.max(1, parseInt(e.target.value) || 1))}
+                    className="w-full px-4 py-3 rounded-xl border border-linen bg-cream/50 focus:bg-white focus:border-primary outline-none transition-all font-medium"
+                  />
+                </div>
+
               </div>
             </section>
           </div>

@@ -1,6 +1,6 @@
 import React, { useMemo } from 'react';
 import { motion } from 'motion/react';
-import { Calendar, BarChart, Info, Layers, Zap } from 'lucide-react';
+import { Calendar, BarChart, Info, Layers, Zap, RefreshCw } from 'lucide-react';
 import { usePresupuesto } from '../context/PresupuestoContext';
 import { cn, formatCOP } from '../utils/utils';
 import {
@@ -30,6 +30,42 @@ export const CronogramaTab: React.FC = () => {
     
     editItem('capitulos', capituloId, { mesesActivos: newMeses });
   };
+
+  // Regenerate Gantt with strict sequential distribution (waterfall)
+  const resetGantt = () => {
+    if (!window.confirm('¿Regenerar el Gantt? Esto distribuirá los capítulos de forma estrictamente secuencial a lo largo del proyecto.')) return;
+    
+    const C = state.capitulos.length;
+    const M = duracionMeses;
+    
+    if (C === 0) return;
+    
+    state.capitulos.forEach((cap, index) => {
+      const startMonth = Math.floor(index * (M / C)) + 1;
+      const endMonth = Math.floor((index + 1) * (M / C));
+      
+      const newMeses = [];
+      for (let m = startMonth; m <= endMonth; m++) {
+        if (m <= M) newMeses.push(m);
+      }
+      
+      // Asegurar que el último capítulo llegue hasta el final si hay redondeos
+      if (index === C - 1 && newMeses[newMeses.length - 1] < M) {
+        for (let m = newMeses[newMeses.length - 1] + 1; m <= M; m++) {
+          newMeses.push(m);
+        }
+      }
+      
+      // Asegurar al menos 1 mes por capítulo
+      if (newMeses.length === 0) {
+        const fallback = Math.min(startMonth, M);
+        newMeses.push(fallback);
+      }
+
+      editItem('capitulos', cap.id, { mesesActivos: newMeses });
+    });
+  };
+
 
   // Cash flow calculation
   const flujoMensual = useMemo(() => {
@@ -95,6 +131,14 @@ export const CronogramaTab: React.FC = () => {
               </div>
             </div>
           </div>
+          <button
+            onClick={resetGantt}
+            title="Ajustar todas las actividades a la duración actual"
+            className="flex items-center justify-center gap-2 bg-white border border-linen p-4 rounded-2xl shadow-sm hover:bg-paper hover:border-graphite/20 transition-all text-xs font-bold uppercase tracking-widest text-forest"
+          >
+            <RefreshCw size={18} className="text-primary" />
+            <span className="hidden sm:inline">Regenerar Gantt</span>
+          </button>
         </div>
       </div>
 
