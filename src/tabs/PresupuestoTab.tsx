@@ -16,7 +16,8 @@ import {
   HardHat,
   Wrench,
   Truck,
-  Construction
+  Construction,
+  ArrowRight
 } from 'lucide-react';
 import { cn, formatCOP } from '../utils/utils';
 
@@ -127,7 +128,7 @@ export const PresupuestoTab: React.FC = () => {
           {activeSubTab === 0 && <AnteproyectoSection key="anteproyecto" items={state.anteproyecto} />}
           {activeSubTab === 1 && <CapitulosSection key="capitulos" onTabChange={setActiveSubTab} />}
           {activeSubTab === 2 && <APUSection key="apu" onTabChange={setActiveSubTab} />}
-          {activeSubTab === 3 && <CostosDirectosSection key="costos" items={state.capitulos} />}
+          {activeSubTab === 3 && <CostosDirectosSection key="costos" items={state.capitulos} onTabChange={setActiveSubTab} />}
           {activeSubTab === 4 && <AIUSection key="aiu" />}
         </AnimatePresence>
       </div>
@@ -261,7 +262,7 @@ const AnteproyectoSection: React.FC<{ items: any[] }> = ({ items }) => {
   );
 };
 
-const CostosDirectosSection: React.FC<{ items: any[] }> = ({ items }) => {
+const CostosDirectosSection: React.FC<{ items: any[], onTabChange: (id: number) => void }> = ({ items, onTabChange }) => {
   const { totals } = usePresupuesto();
 
   return (
@@ -337,6 +338,16 @@ const CostosDirectosSection: React.FC<{ items: any[] }> = ({ items }) => {
             </tfoot>
           </table>
         </div>
+      </div>
+
+      <div className="mt-8 flex justify-end">
+        <button
+          onClick={() => onTabChange(4)}
+          className="group flex items-center gap-3 px-10 py-4 bg-forest text-white rounded-full text-xs font-bold uppercase tracking-widest hover:bg-zinc-800 transition-all shadow-xl shadow-forest/10"
+        >
+          Continuar al AIU
+          <ArrowRight size={16} className="group-hover:translate-x-1 transition-transform" />
+        </button>
       </div>
     </motion.div>
   );
