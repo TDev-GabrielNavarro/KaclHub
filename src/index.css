@@ -26,9 +26,11 @@
 }
 
 @layer base {
+  * {
+    -webkit-tap-highlight-color: transparent;
+  }
   body {
     @apply bg-paper text-ink font-sans antialiased;
-    -webkit-tap-highlight-color: transparent;
   }
 }
 

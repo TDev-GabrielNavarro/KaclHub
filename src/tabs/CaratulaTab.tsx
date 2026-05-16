@@ -10,7 +10,7 @@ export const CaratulaTab: React.FC = () => {
     const { name, value } = e.target;
     // Handle numeric fields
     const numericFields = ['areaConstruida', 'areaLote', 'numeroPisos'];
-    const val = numericFields.includes(name) ? parseFloat(value) || 0 : value;
+    const val = numericFields.includes(name) ? Math.max(0, parseFloat(value) || 0) : value;
     
     updateState(`caratula.${name}`, val);
   };
@@ -104,18 +104,14 @@ export const CaratulaTab: React.FC = () => {
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-graphite">Sistema constructivo</label>
-                  <select
+                  <input
+                    type="text"
                     name="sistemaConstructivo"
                     value={state.caratula.sistemaConstructivo}
                     onChange={handleInputChange}
+                    placeholder="Ej. Concreto reforzado + acero"
                     className="w-full px-4 py-3 rounded-xl border border-linen bg-cream/50 focus:bg-white focus:border-primary outline-none transition-all font-medium"
-                  >
-                    <option>Concreto Reforzado</option>
-                    <option>Acero</option>
-                    <option>Madera</option>
-                    <option>Mampostería</option>
-                    <option>Mixto</option>
-                  </select>
+                  />
                 </div>
                 <div className="space-y-2">
                   <label className="text-xs font-bold uppercase tracking-widest text-graphite">Normativa</label>
@@ -207,6 +203,18 @@ export const CaratulaTab: React.FC = () => {
                     type="date"
                     name="fechaElaboracion"
                     value={state.caratula.fechaElaboracion}
+                    onChange={handleInputChange}
+                    className="w-full px-4 py-3 rounded-xl border border-linen bg-cream/50 focus:bg-white focus:border-primary outline-none transition-all font-medium"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <label className="text-xs font-bold uppercase tracking-widest text-graphite flex items-center gap-2">
+                    <Calendar size={14} /> Fecha de Corte de Precios
+                  </label>
+                  <input
+                    type="date"
+                    name="fechaCortePrecios"
+                    value={state.caratula.fechaCortePrecios}
                     onChange={handleInputChange}
                     className="w-full px-4 py-3 rounded-xl border border-linen bg-cream/50 focus:bg-white focus:border-primary outline-none transition-all font-medium"
                   />

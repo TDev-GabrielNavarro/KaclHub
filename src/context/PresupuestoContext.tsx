@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useState, useEffect, useMemo } from 'react';
 
-export type TabType = 'caratula' | 'presupuesto' | 'resumen';
+export type TabType = 'caratula' | 'presupuesto' | 'cronograma'| 'resumen';
 
 export interface AnteproyectoItem {
   id: string;
@@ -41,9 +41,11 @@ export interface APUActivity {
   nombre: string;
   unidad: string;
   desperdicio: number; // % factor de desperdicio
+  equipos: APUSubItem[];
   materiales: APUSubItem[];
   manoDeObra: APUSubItem[];
-  equipos: APUSubItem[];
+  transporte: APUSubItem[];
+  herramientas: APUSubItem[];
 }
 
 interface PresupuestoState {
@@ -140,9 +142,9 @@ interface PresupuestoContextType {
   addAPU: (apu: Omit<APUActivity, 'id'>) => void;
   removeAPU: (id: string) => void;
   editAPU: (id: string, data: Partial<APUActivity>) => void;
-  addAPUSubItem: (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', item: Omit<APUSubItem, 'id'>) => void;
-  removeAPUSubItem: (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', itemId: string) => void;
-  editAPUSubItem: (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', itemId: string, data: Partial<APUSubItem>) => void;
+  addAPUSubItem: (apuId: string, category: 'equipos' | 'materiales' | 'manoDeObra' | 'transporte' | 'herramientas', item: Omit<APUSubItem, 'id'>) => void;
+  removeAPUSubItem: (apuId: string, category: 'equipos' | 'materiales' | 'manoDeObra' | 'transporte' | 'herramientas', itemId: string) => void;
+  editAPUSubItem: (apuId: string, category: 'equipos' | 'materiales' | 'manoDeObra' | 'transporte' | 'herramientas', itemId: string, data: Partial<APUSubItem>) => void;
   getAPUTotal: (apuId: string) => number;
 }
 
@@ -176,10 +178,12 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
       if (!apuId) return 0;
       const apu = state.apus.find(a => a.id === apuId);
       if (!apu) return 0;
-      const mat = apu.materiales.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0);
-      const mob = apu.manoDeObra.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0);
-      const eq  = apu.equipos.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0);
-      const subtotal = mat + mob + eq;
+      const eq = apu.equipos?.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0) || 0;
+      const mat = apu.materiales?.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0) || 0;
+      const mob = apu.manoDeObra?.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0) || 0;
+      const trans = apu.transporte?.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0) || 0;
+      const herr = apu.herramientas?.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0) || 0;
+      const subtotal = eq + mat + mob + trans + herr;
       return subtotal + subtotal * ((apu.desperdicio || 0) / 100);
     };
 
@@ -287,31 +291,31 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
     setState(prev => ({ ...prev, apus: prev.apus.map(a => a.id === id ? { ...a, ...data } : a) }));
   };
 
-  const addAPUSubItem = (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', item: Omit<APUSubItem, 'id'>) => {
+  const addAPUSubItem = (apuId: string, category: 'equipos' | 'materiales' | 'manoDeObra' | 'transporte' | 'herramientas', item: Omit<APUSubItem, 'id'>) => {
     setState(prev => ({
       ...prev,
       apus: prev.apus.map(a => a.id === apuId
-        ? { ...a, [category]: [...a[category], { id: crypto.randomUUID(), ...item }] }
+        ? { ...a, [category]: [...(a[category] || []), { id: crypto.randomUUID(), ...item }] }
         : a
       )
     }));
   };
 
-  const removeAPUSubItem = (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', itemId: string) => {
+  const removeAPUSubItem = (apuId: string, category: 'equipos' | 'materiales' | 'manoDeObra' | 'transporte' | 'herramientas', itemId: string) => {
     setState(prev => ({
       ...prev,
       apus: prev.apus.map(a => a.id === apuId
-        ? { ...a, [category]: a[category].filter((item: APUSubItem) => item.id !== itemId) }
+        ? { ...a, [category]: (a[category] || []).filter((item: APUSubItem) => item.id !== itemId) }
         : a
       )
     }));
   };
 
-  const editAPUSubItem = (apuId: string, category: 'materiales' | 'manoDeObra' | 'equipos', itemId: string, data: Partial<APUSubItem>) => {
+  const editAPUSubItem = (apuId: string, category: 'equipos' | 'materiales' | 'manoDeObra' | 'transporte' | 'herramientas', itemId: string, data: Partial<APUSubItem>) => {
     setState(prev => ({
       ...prev,
       apus: prev.apus.map(a => a.id === apuId
-        ? { ...a, [category]: a[category].map((item: APUSubItem) => item.id === itemId ? { ...item, ...data } : item) }
+        ? { ...a, [category]: (a[category] || []).map((item: APUSubItem) => item.id === itemId ? { ...item, ...data } : item) }
         : a
       )
     }));
@@ -337,9 +341,11 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
         nombre: nombre || '',
         unidad: '',
         desperdicio: 5,
+        equipos: [],
         materiales: [],
         manoDeObra: [],
-        equipos: [],
+        transporte: [],
+        herramientas: [],
       }]
     }));
   };
