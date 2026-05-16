@@ -14,7 +14,9 @@ import {
   ChevronDown,
   Package,
   HardHat,
-  Wrench
+  Wrench,
+  Truck,
+  Construction
 } from 'lucide-react';
 import { cn, formatCOP } from '../utils/utils';
 
@@ -599,15 +601,17 @@ const CapitulosSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onT
 // ─── APU Section ──────────────────────────────────────────────────────────────
 
 const calcAPUTotals = (apu: APUActivity) => {
-  const mat = apu.materiales.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0);
-  const mob = apu.manoDeObra.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0);
-  const eq  = apu.equipos.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0);
-  const subtotal = mat + mob + eq;
-  const desperdicio = subtotal * (apu.desperdicio / 100);
-  return { mat, mob, eq, subtotal, desperdicio, total: subtotal + desperdicio };
+  const eq = apu.equipos?.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0) || 0;
+  const mat = apu.materiales?.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0) || 0;
+  const mob = apu.manoDeObra?.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0) || 0;
+  const trans = apu.transporte?.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0) || 0;
+  const herr = apu.herramientas?.reduce((s, i) => s + i.cantidad * i.valorUnitario, 0) || 0;
+  const subtotal = eq + mat + mob + trans + herr;
+  const desperdicio = subtotal * ((apu.desperdicio || 0) / 100);
+  return { eq, mat, mob, trans, herr, subtotal, desperdicio, total: subtotal + desperdicio };
 };
 
-type APUCategory = 'materiales' | 'manoDeObra' | 'equipos';
+type APUCategory = 'equipos' | 'materiales' | 'manoDeObra' | 'transporte' | 'herramientas';
 
 interface SubTableProps {
   apuId: string;
@@ -880,46 +884,60 @@ const APUSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onTabChan
                     className="overflow-hidden bg-transparent"
                   >
                     <div className="px-6 py-6 space-y-4 bg-paper/30">
-                      <APUSubTable apuId={apu.id} category="materiales" items={apu.materiales}
-                      label={<span className="flex items-center gap-2"><Package size={14} /> Materiales</span>}
-                      accentColor="bg-amber-50 text-amber-800 border-b border-amber-100" />
-                    <APUSubTable apuId={apu.id} category="manoDeObra" items={apu.manoDeObra}
-                      label={<span className="flex items-center gap-2"><HardHat size={14} /> Mano de Obra</span>}
-                      accentColor="bg-sky-50 text-sky-800 border-b border-sky-100" />
-                    <APUSubTable apuId={apu.id} category="equipos" items={apu.equipos}
-                      label={<span className="flex items-center gap-2"><Wrench size={14} /> Equipos y Herramientas</span>}
-                      accentColor="bg-violet-50 text-violet-800 border-b border-violet-100" />
+                      <APUSubTable apuId={apu.id} category="equipos" items={apu.equipos || []}
+                        label={<span className="flex items-center gap-2"><Construction size={14} /> Equipo</span>}
+                        accentColor="bg-slate-50 text-slate-800 border-b border-slate-100" />
+                      <APUSubTable apuId={apu.id} category="materiales" items={apu.materiales || []}
+                        label={<span className="flex items-center gap-2"><Package size={14} /> Materiales</span>}
+                        accentColor="bg-amber-50 text-amber-800 border-b border-amber-100" />
+                      <APUSubTable apuId={apu.id} category="manoDeObra" items={apu.manoDeObra || []}
+                        label={<span className="flex items-center gap-2"><HardHat size={14} /> Mano de Obra</span>}
+                        accentColor="bg-sky-50 text-sky-800 border-b border-sky-100" />
+                      <APUSubTable apuId={apu.id} category="transporte" items={apu.transporte || []}
+                        label={<span className="flex items-center gap-2"><Truck size={14} /> Transporte</span>}
+                        accentColor="bg-emerald-50 text-emerald-800 border-b border-emerald-100" />
+                      <APUSubTable apuId={apu.id} category="herramientas" items={apu.herramientas || []}
+                        label={<span className="flex items-center gap-2"><Wrench size={14} /> Herramientas</span>}
+                        accentColor="bg-violet-50 text-violet-800 border-b border-violet-100" />
 
-                    {/* APU Summary */}
-                    <div className="bg-forest rounded-xl p-5 grid grid-cols-2 md:grid-cols-4 gap-4 text-white">
-                      <div>
-                        <p className="text-[10px] text-white/40 uppercase tracking-widest">Materiales</p>
-                        <p className="font-bold tabular-nums mt-0.5">{fmt(t.mat)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-white/40 uppercase tracking-widest">Mano de Obra</p>
-                        <p className="font-bold tabular-nums mt-0.5">{fmt(t.mob)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-white/40 uppercase tracking-widest">Equipos</p>
-                        <p className="font-bold tabular-nums mt-0.5">{fmt(t.eq)}</p>
-                      </div>
-                      <div>
-                        <p className="text-[10px] text-white/40 uppercase tracking-widest">Desperdicio ({apu.desperdicio}%)</p>
-                        <p className="font-bold tabular-nums mt-0.5">{fmt(t.desperdicio)}</p>
-                      </div>
-                      <div className="col-span-2 md:col-span-4 pt-4 border-t border-white/10 flex items-center justify-between">
+                      {/* APU Summary */}
+                      <div className="bg-forest rounded-xl p-5 grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4 text-white">
                         <div>
-                          <p className="text-xs text-white/50 uppercase tracking-widest">Subtotal directo</p>
-                          <p className="font-bold tabular-nums">{fmt(t.subtotal)}</p>
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest">Equipo</p>
+                          <p className="font-bold tabular-nums mt-0.5">{fmt(t.eq)}</p>
                         </div>
-                        <div className="text-right">
-                          <p className="text-[10px] text-primary/70 uppercase tracking-widest font-bold">Valor Unitario Final</p>
-                          <p className="font-serif text-3xl font-bold text-primary tabular-nums">{fmt(t.total)}</p>
-                          <p className="text-xs text-white/30">por {apu.unidad || 'unidad'}</p>
+                        <div>
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest">Materiales</p>
+                          <p className="font-bold tabular-nums mt-0.5">{fmt(t.mat)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest">Mano de Obra</p>
+                          <p className="font-bold tabular-nums mt-0.5">{fmt(t.mob)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest">Transporte</p>
+                          <p className="font-bold tabular-nums mt-0.5">{fmt(t.trans)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest">Herramientas</p>
+                          <p className="font-bold tabular-nums mt-0.5">{fmt(t.herr)}</p>
+                        </div>
+                        <div>
+                          <p className="text-[10px] text-white/40 uppercase tracking-widest">Desperdicio ({apu.desperdicio}%)</p>
+                          <p className="font-bold tabular-nums mt-0.5">{fmt(t.desperdicio)}</p>
+                        </div>
+                        <div className="col-span-2 md:col-span-3 lg:col-span-6 pt-4 border-t border-white/10 flex items-center justify-between">
+                          <div>
+                            <p className="text-xs text-white/50 uppercase tracking-widest">Subtotal directo</p>
+                            <p className="font-bold tabular-nums">{fmt(t.subtotal)}</p>
+                          </div>
+                          <div className="text-right">
+                            <p className="text-[10px] text-primary/70 uppercase tracking-widest font-bold">Valor Unitario Final</p>
+                            <p className="font-serif text-3xl font-bold text-primary tabular-nums">{fmt(t.total)}</p>
+                            <p className="text-xs text-white/30">por {apu.unidad || 'unidad'}</p>
+                          </div>
                         </div>
                       </div>
-                    </div>
                   </div>
                   </motion.div>
                 )}
