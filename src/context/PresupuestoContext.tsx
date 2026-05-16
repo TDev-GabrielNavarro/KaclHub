@@ -26,6 +26,7 @@ export interface Capitulo {
   numero: string;
   nombre: string;
   valManual: number;
+  mesesActivos?: number[];
 }
 
 export interface APUSubItem {

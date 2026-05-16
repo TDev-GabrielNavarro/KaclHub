@@ -10,6 +10,7 @@ export const Header: React.FC = () => {
   const tabs = [
     { id: 'caratula', label: 'Carátula' },
     { id: 'presupuesto', label: 'Presupuesto' },
+    { id: 'cronograma', label: 'Cronograma' },
     { id: 'resumen', label: 'Resumen & Entrega' },
   ];
 
