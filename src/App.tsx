@@ -14,6 +14,7 @@ import { PresupuestoProvider, usePresupuesto } from './context/PresupuestoContex
 import { Header } from './components/layout/Header';
 import { CaratulaTab } from './tabs/CaratulaTab';
 import { PresupuestoTab } from './tabs/PresupuestoTab';
+import { CronogramaTab } from './tabs/CronogramaTab';
 import { ResumenTab } from './tabs/ResumenTab';
 
 const AppContent: React.FC = () => {
@@ -27,6 +28,7 @@ const AppContent: React.FC = () => {
         <AnimatePresence mode="wait">
           {activeTab === 'caratula' && <CaratulaTab key="caratula" />}
           {activeTab === 'presupuesto' && <PresupuestoTab key="presupuesto" />}
+          {activeTab === 'cronograma' && <CronogramaTab key="cronograma" />}
           {activeTab === 'resumen' && <ResumenTab key="resumen" />}
         </AnimatePresence>
       </main>
