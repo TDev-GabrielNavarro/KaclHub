@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { usePresupuesto } from '../context/PresupuestoContext';
-import type { APUActivity, APUSubItem } from '../context/PresupuestoContext';
+import type { APUActivity, APUSubItem, AIUDetailItem } from '../context/PresupuestoContext';
 import { 
   ClipboardList, 
   Layers, 
@@ -12,6 +12,7 @@ import {
   Trash2, 
   Info,
   ChevronDown,
+  ChevronRight,
   Package,
   HardHat,
   Wrench,
@@ -23,12 +24,12 @@ import { cn, formatCOP } from '../utils/utils';
 
 const CurrencyInput = ({ value, onChange, className }: { value: number, onChange: (v: number) => void, className?: string }) => {
   const [focused, setFocused] = useState(false);
-  const [localValue, setLocalValue] = useState(value.toString());
+  const [localValue, setLocalValue] = useState(value === 0 ? '' : value.toString());
 
   // Update local state when not focused to keep in sync with external changes
   React.useEffect(() => {
     if (!focused) {
-      setLocalValue(value.toString());
+      setLocalValue(value === 0 ? '' : value.toString());
     }
   }, [value, focused]);
 
@@ -44,7 +45,43 @@ const CurrencyInput = ({ value, onChange, className }: { value: number, onChange
       type="text"
       value={focused ? localValue : formatCOP(value)}
       onChange={handleChange}
-      onFocus={() => setFocused(true)}
+      onFocus={() => {
+        setFocused(true);
+        if (value === 0) setLocalValue('');
+      }}
+      onBlur={() => setFocused(false)}
+      className={className}
+    />
+  );
+};
+
+const QuantityInput = ({ value, onChange, className }: { value: number, onChange: (v: number) => void, className?: string }) => {
+  const [focused, setFocused] = useState(false);
+  const [localValue, setLocalValue] = useState(value === 0 ? '' : value.toString());
+
+  React.useEffect(() => {
+    if (!focused) {
+      setLocalValue(value === 0 ? '' : value.toString());
+    }
+  }, [value, focused]);
+
+  const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const val = e.target.value;
+    if (val === '' || /^\d*\.?\d*$/.test(val)) {
+      setLocalValue(val);
+      onChange(parseFloat(val) || 0);
+    }
+  };
+
+  return (
+    <input
+      type="text"
+      value={focused ? localValue : value.toString()}
+      onChange={handleChange}
+      onFocus={() => {
+        setFocused(true);
+        if (value === 0) setLocalValue('');
+      }}
       onBlur={() => setFocused(false)}
       className={className}
     />
@@ -208,12 +245,9 @@ const AnteproyectoSection: React.FC<{ items: any[] }> = ({ items }) => {
                   />
                 </td>
                 <td className="px-6 py-4 text-right">
-                  <input 
-                    type="number" 
-                    min="0"
-                    step="any"
+                  <QuantityInput 
                     value={item.cantidad} 
-                    onChange={(e) => editItem('anteproyecto', item.id, { cantidad: Math.max(0, parseFloat(e.target.value) || 0) })}
+                    onChange={(val) => editItem('anteproyecto', item.id, { cantidad: val })}
                     className="w-20 bg-transparent border-none text-right focus:ring-0 font-medium tabular-nums outline-none pr-6"
                   />
                 </td>
@@ -514,12 +548,9 @@ const CapitulosSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onT
                                     />
                                   </td>
                                   <td className="px-6 py-3 text-right">
-                                    <input
-                                      type="number"
-                                      min="0"
-                                      step="any"
+                                    <QuantityInput
                                       value={act.cantidad}
-                                      onChange={(e) => editItem('actividades', act.id, { cantidad: Math.max(0, parseFloat(e.target.value) || 0) })}
+                                      onChange={(val) => editItem('actividades', act.id, { cantidad: val })}
                                       className="w-24 bg-transparent outline-none text-right font-medium tabular-nums pr-4"
                                     />
                                   </td>
@@ -587,7 +618,7 @@ const CapitulosSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onT
           
           <button
             onClick={() => addItem('capitulos', { numero: String(state.capitulos.length + 1).padStart(2, '0'), nombre: '', valManual: 0 })}
-            className="w-full flex items-center justify-center gap-2 px-6 py-6 rounded-2xl border-2 border-dashed border-linen hover:border-primary hover:bg-primary/5 text-graphite/40 hover:text-primary transition-all active:scale-95 group"
+            className="w-full flex items-center justify-center gap-2 px-6 py-6 rounded-2xl border-2 border-dashed border-primary bg-primary/5 text-primary hover:bg-primary/10 hover:border-primary-dark hover:text-primary-dark transition-all active:scale-95 group"
           >
             <Plus size={20} className="group-hover:rotate-90 transition-transform" />
             <span className="font-bold uppercase tracking-widest text-xs">Agregar Nuevo Capítulo</span>
@@ -679,8 +710,8 @@ const APUSubTable: React.FC<SubTableProps> = ({ apuId, category, items, label, a
                   className="w-14 bg-transparent outline-none text-sm placeholder:text-graphite/25" />
               </td>
               <td className="px-5 py-2 text-right">
-                <input type="number" min="0" step="any" value={item.cantidad}
-                  onChange={e => editAPUSubItem(apuId, category, item.id, { cantidad: Math.max(0, parseFloat(e.target.value) || 0) })}
+                <QuantityInput value={item.cantidad}
+                  onChange={val => editAPUSubItem(apuId, category, item.id, { cantidad: val })}
                   className="w-20 bg-transparent outline-none text-right text-sm tabular-nums pr-3" />
               </td>
               <td className="px-5 py-2 text-right">
@@ -961,6 +992,135 @@ const APUSection: React.FC<{ onTabChange: (id: number) => void }> = ({ onTabChan
   );
 };
 
+const AIUCategoryBreakdown: React.FC<{
+  category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva';
+  label: string;
+  items: AIUDetailItem[];
+}> = ({ category, label, items }) => {
+  const { addAIUDetailItem, removeAIUDetailItem, editAIUDetailItem } = usePresupuesto();
+  const [isOpen, setIsOpen] = useState(false);
+
+  const subtotal = items.reduce((sum, item) => sum + (item.cantidad * item.valorUnitario), 0);
+
+  return (
+    <div className="mt-3 border border-linen rounded-xl overflow-hidden bg-paper">
+      <button
+        onClick={() => setIsOpen(!isOpen)}
+        className="w-full flex items-center justify-between px-4 py-2.5 bg-linen/30 hover:bg-linen/50 text-graphite text-[10px] font-bold uppercase tracking-widest transition-colors"
+      >
+        <span className="flex items-center gap-1.5">
+          {isOpen ? <ChevronDown size={12} /> : <ChevronRight size={12} />}
+          Desglose Analítico ({items.length})
+        </span>
+        <span className="font-mono tabular-nums text-[10px] text-forest bg-white px-2 py-0.5 rounded border border-linen">
+          Detalle: {formatCOP(subtotal)}
+        </span>
+      </button>
+      
+      <AnimatePresence initial={false}>
+        {isOpen && (
+          <motion.div
+            initial={{ height: 0, opacity: 0 }}
+            animate={{ height: 'auto', opacity: 1 }}
+            exit={{ height: 0, opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="overflow-hidden border-t border-linen"
+          >
+            <div className="p-3 bg-white space-y-3">
+              {items.length === 0 ? (
+                <div className="text-center py-4 bg-paper rounded border border-dashed border-linen">
+                  <p className="text-graphite/40 text-[10px] italic mb-2">No hay componentes detallados para {label}.</p>
+                  <button
+                    onClick={() => addAIUDetailItem(category, { descripcion: '', unidad: '', cantidad: 1, valorUnitario: 0 })}
+                    className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[9px] font-bold text-pine bg-pine/5 hover:bg-pine hover:text-white transition-all"
+                  >
+                    <Plus size={10} /> Agregar primer ítem
+                  </button>
+                </div>
+              ) : (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left border-collapse min-w-[300px]">
+                    <thead>
+                      <tr className="border-b border-linen text-[8px] font-bold uppercase tracking-widest text-graphite/60 bg-paper">
+                        <th className="px-2 py-1 w-2/5">Descripción</th>
+                        <th className="px-2 py-1 w-12">Und</th>
+                        <th className="px-2 py-1 w-16 text-right">Cant</th>
+                        <th className="px-2 py-1 w-20 text-right">V. Unitario</th>
+                        <th className="px-2 py-1 w-20 text-right">Total</th>
+                        <th className="px-2 py-1 w-6"></th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {items.map(item => (
+                        <tr key={item.id} className="border-b border-linen hover:bg-paper/30 transition-colors">
+                          <td className="px-2 py-1">
+                            <input
+                              type="text"
+                              value={item.descripcion}
+                              placeholder="Ej. Personal, Alquiler..."
+                              onChange={e => editAIUDetailItem(category, item.id, { descripcion: e.target.value })}
+                              className="w-full bg-transparent outline-none text-[11px] text-forest font-medium placeholder:text-graphite/30"
+                            />
+                          </td>
+                          <td className="px-2 py-1">
+                            <input
+                              type="text"
+                              value={item.unidad}
+                              placeholder="mes"
+                              onChange={e => editAIUDetailItem(category, item.id, { unidad: e.target.value })}
+                              className="w-full bg-transparent outline-none text-[11px] text-graphite placeholder:text-graphite/30"
+                            />
+                          </td>
+                          <td className="px-2 py-1 text-right">
+                            <QuantityInput
+                              value={item.cantidad}
+                              onChange={val => editAIUDetailItem(category, item.id, { cantidad: val })}
+                              className="w-12 bg-transparent outline-none text-right text-[11px] tabular-nums font-medium"
+                            />
+                          </td>
+                          <td className="px-2 py-1 text-right">
+                            <CurrencyInput
+                              value={item.valorUnitario}
+                              onChange={val => editAIUDetailItem(category, item.id, { valorUnitario: val })}
+                              className="w-16 bg-transparent outline-none text-right text-[11px] tabular-nums font-medium pr-1"
+                            />
+                          </td>
+                          <td className="px-2 py-1 text-right font-bold text-[11px] text-forest tabular-nums">
+                            {formatCOP(item.cantidad * item.valorUnitario)}
+                          </td>
+                          <td className="px-2 py-1 text-center">
+                            <button
+                              onClick={() => removeAIUDetailItem(category, item.id)}
+                              className="text-graphite/40 hover:text-red-500 transition-colors p-0.5"
+                            >
+                              <Trash2 size={10} />
+                            </button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+              
+              {items.length > 0 && (
+                <div className="flex justify-between items-center pt-2 border-t border-linen">
+                  <button
+                    onClick={() => addAIUDetailItem(category, { descripcion: '', unidad: '', cantidad: 1, valorUnitario: 0 })}
+                    className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold text-pine bg-pine/5 hover:bg-pine hover:text-white transition-all active:scale-95"
+                  >
+                    <Plus size={10} /> Agregar ítem
+                  </button>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  );
+};
+
 const AIUSection: React.FC = () => {
   const { state, updateState, totals } = usePresupuesto();
   
@@ -974,8 +1134,8 @@ const AIUSection: React.FC = () => {
       <div className="relative">
         <span className="absolute -top-10 -left-6 text-8xl font-serif font-bold text-forest/[0.03] pointer-events-none">05</span>
         <div>
-          <h3 className="font-serif text-3xl font-bold text-forest">A.I.U. y Gran Total</h3>
-          <p className="text-graphite">Cálculo de Administración, Imprevistos y Utilidad sobre el Costo Directo.</p>
+          <h3 className="font-serif text-3xl font-bold text-forest">A.I.U. e IVA y Gran Total</h3>
+          <p className="text-graphite">Cálculo de Administración, Imprevistos, Utilidad e IVA con opción de desglose detallado.</p>
         </div>
       </div>
 
@@ -983,44 +1143,69 @@ const AIUSection: React.FC = () => {
         {/* Left column: AIU Inputs */}
         <div className="bg-white rounded-2xl shadow-warm border border-linen p-8 space-y-6 card-hover">
           <div className="flex items-center justify-between pb-4 border-b border-linen">
-            <h4 className="font-bold text-forest uppercase tracking-widest text-sm">Porcentajes AIU</h4>
+            <h4 className="font-bold text-forest uppercase tracking-widest text-sm">Costos Indirectos</h4>
             <span className="text-xs font-bold bg-primary/20 text-forest px-3 py-1 rounded-full">
-              Base: {formatCOP(totals.totalDirecto)}
+              Base CD: {formatCOP(totals.totalDirecto)}
             </span>
           </div>
 
           <div className="space-y-4">
             {[
-              { id: 'administracion', label: 'Administración', color: 'bg-blue-50 text-blue-700', border: 'focus:border-blue-500' },
-              { id: 'imprevistos', label: 'Imprevistos', color: 'bg-amber-50 text-amber-700', border: 'focus:border-amber-500' },
-              { id: 'utilidad', label: 'Utilidad', color: 'bg-emerald-50 text-emerald-700', border: 'focus:border-emerald-500' },
-            ].map(item => (
-              <div key={item.id} className="flex items-center justify-between gap-4 p-4 rounded-xl bg-paper border border-linen">
-                <div className="flex-1">
-                  <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${item.color} mb-1 inline-block`}>
-                    {item.label}
-                  </span>
-                  <p className="text-sm text-graphite font-medium">Porcentaje aplicado</p>
-                </div>
-                <div className="flex items-center gap-2">
-                  <input
-                    type="number"
-                    min="0"
-                    step="0.1"
-                    value={state.aiu[item.id as keyof typeof state.aiu]}
-                    onChange={(e) => updateState(`aiu.${item.id}`, Math.max(0, parseFloat(e.target.value) || 0))}
-                    className={`w-20 px-3 py-2 text-right font-bold text-lg rounded-lg border border-linen bg-white outline-none transition-all ${item.border} focus:ring-4 focus:ring-black/5`}
+              { id: 'administracion', label: 'Administración', color: 'bg-blue-50 text-blue-700', border: 'focus:border-blue-500', baseVal: totals.totalDirecto, baseLabel: 'Costo Directo' },
+              { id: 'imprevistos', label: 'Imprevistos', color: 'bg-amber-50 text-amber-700', border: 'focus:border-amber-500', baseVal: totals.totalDirecto, baseLabel: 'Costo Directo' },
+              { id: 'utilidad', label: 'Utilidad', color: 'bg-emerald-50 text-emerald-700', border: 'focus:border-emerald-500', baseVal: totals.totalDirecto, baseLabel: 'Costo Directo' },
+              { id: 'iva', label: 'IVA', color: 'bg-rose-50 text-rose-700', border: 'focus:border-rose-500', baseVal: totals.totalDirecto, baseLabel: 'Costo Directo' },
+            ].map(item => {
+              const hasBreakdown = (state.aiuDetalles?.[item.id as keyof typeof state.aiuDetalles] || []).length > 0;
+              const currentValue = state.aiu[item.id as keyof typeof state.aiu] ?? (item.id === 'iva' ? 19 : 0);
+              const calculatedCost = totals.aiu[item.id as keyof typeof totals.aiu] || 0;
+              const effectivePercentage = item.baseVal > 0 ? (calculatedCost / item.baseVal) * 100 : 0;
+              
+              return (
+                <div key={item.id} className="p-4 rounded-xl bg-paper border border-linen shadow-sm hover:shadow-md transition-all">
+                  <div className="flex items-center justify-between gap-4">
+                    <div className="flex-1">
+                      <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${item.color} mb-1 inline-block`}>
+                        {item.label}
+                      </span>
+                      {hasBreakdown ? (
+                        <p className="text-[9px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
+                          ✓ Desglose sumado al %
+                        </p>
+                      ) : (
+                        <p className="text-[9px] text-graphite font-medium">Base: {item.baseLabel} ({formatCOP(item.baseVal)})</p>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <input
+                        type="number"
+                        min="0"
+                        step="any"
+                        value={currentValue}
+                        onChange={(e) => updateState(`aiu.${item.id}`, Math.max(0, parseFloat(e.target.value) || 0))}
+                        className={`w-18 px-2 py-1 text-right font-bold text-sm rounded border border-linen bg-white outline-none transition-all ${item.border} focus:ring-4 focus:ring-black/5`}
+                      />
+                      <span className="text-graphite font-bold text-xs">%</span>
+                    </div>
+                    <div className="w-24 text-right">
+                      <p className="text-[8px] text-graphite uppercase tracking-widest mb-0.5">
+                        {hasBreakdown ? 'Efec. ' + effectivePercentage.toFixed(1) + '%' : 'Valor'}
+                      </p>
+                      <p className="font-bold text-forest tabular-nums text-xs">
+                        {formatCOP(calculatedCost)}
+                      </p>
+                    </div>
+                  </div>
+                  
+                  {/* Detailed expandable component */}
+                  <AIUCategoryBreakdown 
+                    category={item.id as any} 
+                    label={item.label} 
+                    items={state.aiuDetalles?.[item.id as keyof typeof state.aiuDetalles] || []} 
                   />
-                  <span className="text-graphite font-bold">%</span>
                 </div>
-                <div className="w-32 text-right">
-                  <p className="text-[10px] text-graphite uppercase tracking-widest mb-1">Valor</p>
-                  <p className="font-bold text-forest tabular-nums">
-                    {formatCOP(totals.aiu[item.id as keyof typeof totals.aiu])}
-                  </p>
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
 
@@ -1040,8 +1225,27 @@ const AIUSection: React.FC = () => {
               </div>
               
               <div className="flex justify-between items-end pb-4 border-b border-white/10">
-                <span className="text-white/70">Total A.I.U. <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded ml-2">{(state.aiu.administracion + state.aiu.imprevistos + state.aiu.utilidad).toFixed(1)}%</span></span>
-                <span className="font-serif text-2xl tabular-nums">{formatCOP(totals.totalAIU)}</span>
+                <span className="text-white/70">
+                  Total A.I.U. 
+                  <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded ml-2">
+                    {((totals.aiu.administracion + totals.aiu.imprevistos + totals.aiu.utilidad) / (totals.totalDirecto || 1) * 100).toFixed(1)}%
+                  </span>
+                </span>
+                <span className="font-serif text-2xl tabular-nums">
+                  {formatCOP(totals.aiu.administracion + totals.aiu.imprevistos + totals.aiu.utilidad)}
+                </span>
+              </div>
+              
+              <div className="flex justify-between items-end pb-4 border-b border-white/10">
+                <span className="text-white/70">
+                  IVA
+                  <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded ml-2">
+                    {((totals.aiu.iva / (totals.totalDirecto || 1)) * 100).toFixed(1)}%
+                  </span>
+                </span>
+                <span className="font-serif text-2xl tabular-nums">
+                  {formatCOP(totals.aiu.iva)}
+                </span>
               </div>
               
               <div className="pt-4">
@@ -1057,8 +1261,9 @@ const AIUSection: React.FC = () => {
             <Info className="text-primary shrink-0 mt-1" />
             <div>
               <p className="text-sm text-graphite leading-relaxed">
-                El <strong>Costo Directo</strong> representa todos los gastos intrínsecos de la obra (materiales, mano de obra, equipos). 
-                El <strong>A.I.U.</strong> calcula los gastos administrativos, imprevistos y el margen de ganancia sobre ese costo directo.
+                El <strong>Costo Directo</strong> representa todos los gastos intrínsecos de la obra. 
+                El <strong>A.I.U.</strong> y el <strong>IVA</strong> se calculan sobre el costo directo.
+                Puedes desglosar cada rubro detalladamente para mayor precisión; al agregar ítems a un desglose, la suma de los mismos **se sumará al valor porcentual general**.
               </p>
             </div>
           </div>

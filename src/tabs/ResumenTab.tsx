@@ -18,7 +18,8 @@ import {
   Clock, 
   Download, 
   FileCheck,
-  Zap
+  Zap,
+  Percent
 } from 'lucide-react';
 import { formatCOP, cn } from '../utils/utils';
 import { usePresupuesto } from '../context/PresupuestoContext';
@@ -29,9 +30,10 @@ export const ResumenTab: React.FC = () => {
 
   const dataPie = useMemo(() => [
     { name: 'Costos Directos', value: totals.totalDirecto, color: '#1a1a1a' },
-    { name: 'Adm (A)', value: totals.aiu.administracion, color: '#fec31b' },
-    { name: 'Imp (I)', value: totals.aiu.imprevistos, color: '#71717a' },
-    { name: 'Util (U)', value: totals.aiu.utilidad, color: '#e4e4e7' },
+    { name: 'Adm (A)', value: totals.aiu.administracion, color: '#3b82f6' },
+    { name: 'Imp (I)', value: totals.aiu.imprevistos, color: '#f59e0b' },
+    { name: 'Util (U)', value: totals.aiu.utilidad, color: '#10b981' },
+    { name: 'IVA', value: totals.aiu.iva, color: '#f43f5e' },
   ], [totals]);
 
   const duracionMeses = state.cronograma.duracionMeses || 12;
@@ -102,7 +104,7 @@ export const ResumenTab: React.FC = () => {
       </div>
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
         <KPICard 
           label="Costos Directos" 
           value={formatCOP(totals.totalDirecto)} 
@@ -112,21 +114,30 @@ export const ResumenTab: React.FC = () => {
         <KPICard 
           label="Administración" 
           value={formatCOP(totals.aiu.administracion)} 
-          sub={`${state.aiu.administracion}% A`} 
+          sub={(state.aiuDetalles?.administracion?.length > 0) ? `${state.aiu.administracion}% A + Detalle` : `${state.aiu.administracion}% A`} 
           icon={Zap} 
-          color="border-primary" 
+          color="border-blue-400" 
         />
         <KPICard 
           label="Imprevistos" 
           value={formatCOP(totals.aiu.imprevistos)} 
-          sub={`${state.aiu.imprevistos}% I`} 
+          sub={(state.aiuDetalles?.imprevistos?.length > 0) ? `${state.aiu.imprevistos}% I + Detalle` : `${state.aiu.imprevistos}% I`} 
           icon={Clock} 
+          color="border-amber-400"
         />
         <KPICard 
           label="Utilidad" 
           value={formatCOP(totals.aiu.utilidad)} 
-          sub={`${state.aiu.utilidad}% U`} 
+          sub={(state.aiuDetalles?.utilidad?.length > 0) ? `${state.aiu.utilidad}% U + Detalle` : `${state.aiu.utilidad}% U`} 
           icon={TrendingUp} 
+          color="border-emerald-400"
+        />
+        <KPICard 
+          label="IVA" 
+          value={formatCOP(totals.aiu.iva)} 
+          sub={(state.aiuDetalles?.iva?.length > 0) ? `${state.aiu.iva ?? 19}% IVA + Detalle` : `${state.aiu.iva ?? 19}% IVA`} 
+          icon={Percent} 
+          color="border-rose-400"
         />
       </div>
 
