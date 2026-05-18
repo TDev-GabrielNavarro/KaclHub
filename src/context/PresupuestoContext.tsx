@@ -49,6 +49,14 @@ export interface APUActivity {
   herramientas: APUSubItem[];
 }
 
+export interface AIUDetailItem {
+  id: string;
+  descripcion: string;
+  unidad: string;
+  cantidad: number;
+  valorUnitario: number;
+}
+
 interface PresupuestoState {
   meta: {
     savedAt: string | null;
@@ -80,6 +88,13 @@ interface PresupuestoState {
     administracion: number;
     imprevistos: number;
     utilidad: number;
+    iva: number; // IVA percentage
+  };
+  aiuDetalles: {
+    administracion: AIUDetailItem[];
+    imprevistos: AIUDetailItem[];
+    utilidad: AIUDetailItem[];
+    iva: AIUDetailItem[];
   };
   adminDetalle: any[];
   cronograma: {
@@ -119,6 +134,13 @@ const initialState: PresupuestoState = {
     administracion: 12,
     imprevistos: 5,
     utilidad: 8,
+    iva: 19,
+  },
+  aiuDetalles: {
+    administracion: [],
+    imprevistos: [],
+    utilidad: [],
+    iva: [],
   },
   adminDetalle: [],
   cronograma: {
@@ -147,6 +169,9 @@ interface PresupuestoContextType {
   removeAPUSubItem: (apuId: string, category: 'equipos' | 'materiales' | 'manoDeObra' | 'transporte' | 'herramientas', itemId: string) => void;
   editAPUSubItem: (apuId: string, category: 'equipos' | 'materiales' | 'manoDeObra' | 'transporte' | 'herramientas', itemId: string, data: Partial<APUSubItem>) => void;
   getAPUTotal: (apuId: string) => number;
+  addAIUDetailItem: (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva', item: Omit<AIUDetailItem, 'id'>) => void;
+  removeAIUDetailItem: (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva', itemId: string) => void;
+  editAIUDetailItem: (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva', itemId: string, data: Partial<AIUDetailItem>) => void;
 }
 
 const PresupuestoContext = createContext<PresupuestoContextType | undefined>(undefined);
@@ -161,7 +186,10 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
         const parsed = JSON.parse(saved);
         // Merge with initialState so any NEW fields added after a save
         // always have a fallback default value (prevents undefined crashes).
-        return { ...initialState, ...parsed };
+        const merged = { ...initialState, ...parsed };
+        merged.aiu = { ...initialState.aiu, ...parsed.aiu };
+        merged.aiuDetalles = { ...initialState.aiuDetalles, ...parsed.aiuDetalles };
+        return merged;
       } catch (e) {
         console.error("Error parsing saved state", e);
         return initialState;
@@ -205,13 +233,22 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const totalDirecto = chapterTotals.reduce((acc, curr) => acc + curr.total, 0);
     
+    const calcCategory = (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva') => {
+      const pct = state.aiu[category] !== undefined ? state.aiu[category] : (category === 'iva' ? 19 : 0);
+      const baseCost = (totalDirecto * pct) / 100;
+      const items = state.aiuDetalles?.[category] || [];
+      const detailTotal = items.reduce((sum, item) => sum + (item.cantidad * item.valorUnitario), 0);
+      return baseCost + detailTotal;
+    };
+
     const aiu = {
-      administracion: (totalDirecto * state.aiu.administracion) / 100,
-      imprevistos: (totalDirecto * state.aiu.imprevistos) / 100,
-      utilidad: (totalDirecto * state.aiu.utilidad) / 100,
+      administracion: calcCategory('administracion'),
+      imprevistos: calcCategory('imprevistos'),
+      utilidad: calcCategory('utilidad'),
+      iva: calcCategory('iva'),
     };
     
-    const totalAIU = aiu.administracion + aiu.imprevistos + aiu.utilidad;
+    const totalAIU = aiu.administracion + aiu.imprevistos + aiu.utilidad + aiu.iva;
     const granTotal = totalDirecto + totalAIU;
     const costoM2 = state.caratula.areaConstruida > 0 ? granTotal / state.caratula.areaConstruida : 0;
 
@@ -234,6 +271,52 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
       meta: { ...state.meta, savedAt: new Date().toISOString() }
     }));
   }, [state]);
+
+  // Auto-heal / sync activities and APUs (resiliency for legacy or glitched states)
+  useEffect(() => {
+    let changed = false;
+    const currentActividades = state.actividades || [];
+    const currentApus = state.apus || [];
+
+    // 1. Ensure every activity has an apuId
+    const healedActividades = currentActividades.map(act => {
+      if (!act.apuId) {
+        changed = true;
+        return { ...act, apuId: crypto.randomUUID() };
+      }
+      return act;
+    });
+
+    // 2. Ensure every activity's apuId has a corresponding APU in state.apus
+    const healedApus = [...currentApus];
+    healedActividades.forEach(act => {
+      if (act.apuId) {
+        const hasApu = healedApus.some(a => a.id === act.apuId);
+        if (!hasApu) {
+          healedApus.push({
+            id: act.apuId,
+            nombre: act.nombre || '',
+            unidad: act.unidad || '',
+            desperdicio: 5,
+            equipos: [],
+            materiales: [],
+            manoDeObra: [],
+            transporte: [],
+            herramientas: [],
+          });
+          changed = true;
+        }
+      }
+    });
+
+    if (changed) {
+      setState(prev => ({
+        ...prev,
+        actividades: healedActividades,
+        apus: healedApus
+      }));
+    }
+  }, [state.actividades, state.apus]);
 
   const updateState = (path: string, value: any) => {
     setState(prev => {
@@ -385,6 +468,48 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
     return totals._getAPUTotal(apuId);
   };
 
+  const addAIUDetailItem = (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva', item: Omit<AIUDetailItem, 'id'>) => {
+    setState(prev => {
+      const currentDetails = prev.aiuDetalles || { administracion: [], imprevistos: [], utilidad: [], iva: [] };
+      const categoryItems = currentDetails[category] || [];
+      return {
+        ...prev,
+        aiuDetalles: {
+          ...currentDetails,
+          [category]: [...categoryItems, { id: crypto.randomUUID(), ...item }]
+        }
+      };
+    });
+  };
+
+  const removeAIUDetailItem = (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva', itemId: string) => {
+    setState(prev => {
+      const currentDetails = prev.aiuDetalles || { administracion: [], imprevistos: [], utilidad: [], iva: [] };
+      const categoryItems = currentDetails[category] || [];
+      return {
+        ...prev,
+        aiuDetalles: {
+          ...currentDetails,
+          [category]: categoryItems.filter(item => item.id !== itemId)
+        }
+      };
+    });
+  };
+
+  const editAIUDetailItem = (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva', itemId: string, data: Partial<AIUDetailItem>) => {
+    setState(prev => {
+      const currentDetails = prev.aiuDetalles || { administracion: [], imprevistos: [], utilidad: [], iva: [] };
+      const categoryItems = currentDetails[category] || [];
+      return {
+        ...prev,
+        aiuDetalles: {
+          ...currentDetails,
+          [category]: categoryItems.map(item => item.id === itemId ? { ...item, ...data } : item)
+        }
+      };
+    });
+  };
+
   return (
     <PresupuestoContext.Provider value={{
       state, activeTab, setActiveTab, updateState, resetState, totals,
@@ -394,6 +519,7 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
       addAPU, removeAPU, editAPU,
       addAPUSubItem, removeAPUSubItem, editAPUSubItem,
       getAPUTotal: getAPUTotalFn,
+      addAIUDetailItem, removeAIUDetailItem, editAIUDetailItem,
     }}>
       {children}
     </PresupuestoContext.Provider>

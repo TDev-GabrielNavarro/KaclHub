@@ -69,6 +69,7 @@ export const generateProfessionalReport = (state: any, totals: any) => {
   addFinanceRow('Administración:', totals.aiu.administracion);
   addFinanceRow('Imprevistos:', totals.aiu.imprevistos);
   addFinanceRow('Utilidad:', totals.aiu.utilidad);
+  addFinanceRow('IVA:', totals.aiu.iva);
   
   y += 4;
   doc.setLineWidth(0.5);
@@ -114,6 +115,60 @@ export const generateProfessionalReport = (state: any, totals: any) => {
       'TOTAL COSTOS DIRECTOS', 
       formatCOP(totalDirecto), 
       '100%'
+    ]],
+    footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' }
+  });
+
+  const finalY = (doc as any).lastAutoTable.finalY || 100;
+  
+  doc.setFontSize(13);
+  doc.setFont('helvetica', 'bold');
+  doc.setTextColor(26, 46, 38);
+  doc.text('RESUMEN DE COSTOS INDIRECTOS (A.I.U. e IVA)', 14, finalY + 12);
+  
+  const indirectsData: any[] = [];
+  
+  const addCategoryRows = (categoryKey: string, categoryLabel: string) => {
+    const items = state.aiuDetalles?.[categoryKey] || [];
+    const cost = totals.aiu[categoryKey] || 0;
+    
+    if (items.length > 0) {
+      indirectsData.push([categoryLabel.toUpperCase(), 'Detalle sumado al %', formatCOP(cost)]);
+      items.forEach((item: any) => {
+        indirectsData.push([
+          `   • ${item.descripcion || 'Sin descripción'}`,
+          `${item.cantidad || 1} ${item.unidad || 'und'} x ${formatCOP(item.valorUnitario || 0)}`,
+          formatCOP((item.cantidad || 1) * (item.valorUnitario || 0))
+        ]);
+      });
+    } else {
+      const pct = state.aiu[categoryKey] ?? (categoryKey === 'iva' ? 19 : 0);
+      indirectsData.push([
+        categoryLabel.toUpperCase(),
+        `${pct}% del Costo Directo`,
+        formatCOP(cost)
+      ]);
+    }
+  };
+
+  addCategoryRows('administracion', 'Administración');
+  addCategoryRows('imprevistos', 'Imprevistos');
+  addCategoryRows('utilidad', 'Utilidad');
+  addCategoryRows('iva', 'IVA');
+
+  autoTable(doc, {
+    startY: finalY + 16,
+    head: [['Concepto / Componente', 'Base de Cálculo / Desglose', 'Valor']],
+    body: indirectsData,
+    theme: 'grid',
+    headStyles: { fillColor: [26, 46, 38], textColor: [255, 255, 255] },
+    columnStyles: {
+      2: { halign: 'right' }
+    },
+    foot: [[
+      'TOTAL COSTOS INDIRECTOS',
+      '',
+      formatCOP(totalAIU)
     ]],
     footStyles: { fillColor: [240, 240, 240], textColor: [0, 0, 0], fontStyle: 'bold' }
   });
