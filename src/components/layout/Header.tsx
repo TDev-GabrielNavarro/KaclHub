@@ -1,11 +1,13 @@
-import React from 'react';
-import { motion } from 'motion/react';
+import React, { useState } from 'react';
+import { motion, AnimatePresence } from 'motion/react';
 import { FileUp, Save, HardHat, RotateCcw } from 'lucide-react';
 import { usePresupuesto } from '../../context/PresupuestoContext';
 import { cn } from '../../utils/utils';
+import { ImportModal } from './ImportModal';
 
 export const Header: React.FC = () => {
   const { state, activeTab, setActiveTab, resetState } = usePresupuesto();
+  const [isImportOpen, setIsImportOpen] = useState(false);
 
   const tabs = [
     { id: 'caratula', label: 'Carátula' },
@@ -51,7 +53,10 @@ export const Header: React.FC = () => {
             <RotateCcw size={15} />
             <span className="hidden xl:inline">Limpiar</span>
           </button>
-          <button className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-xs font-bold uppercase tracking-widest">
+          <button 
+            onClick={() => setIsImportOpen(true)}
+            className="flex items-center gap-2 px-4 py-2.5 rounded-full bg-white/10 hover:bg-white/20 transition-colors text-xs font-bold uppercase tracking-widest"
+          >
             <FileUp size={16} />
             <span className="hidden xl:inline">Importar</span>
           </button>
@@ -86,6 +91,11 @@ export const Header: React.FC = () => {
           ))}
         </div>
       </nav>
+      <AnimatePresence>
+        {isImportOpen && (
+          <ImportModal isOpen={isImportOpen} onClose={() => setIsImportOpen(false)} />
+        )}
+      </AnimatePresence>
     </header>
   );
 };

@@ -30,8 +30,8 @@ export const ResumenTab: React.FC = () => {
 
   const dataPie = useMemo(() => [
     { name: 'Costos Directos', value: totals.totalDirecto, color: '#1a1a1a' },
-    { name: 'Adm (A)', value: totals.aiu.administracion, color: '#3b82f6' },
-    { name: 'Imp (I)', value: totals.aiu.imprevistos, color: '#f59e0b' },
+    { name: 'Admin (A)', value: totals.aiu.administracion, color: '#3b82f6' },
+    { name: 'Imprevistos (I)', value: totals.aiu.imprevistos, color: '#f59e0b' },
     { name: 'Util (U)', value: totals.aiu.utilidad, color: '#10b981' },
     { name: 'IVA', value: totals.aiu.iva, color: '#f43f5e' },
   ], [totals]);

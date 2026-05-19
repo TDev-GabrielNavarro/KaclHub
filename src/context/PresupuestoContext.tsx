@@ -57,7 +57,7 @@ export interface AIUDetailItem {
   valorUnitario: number;
 }
 
-interface PresupuestoState {
+export interface PresupuestoState {
   meta: {
     savedAt: string | null;
     version: string;
@@ -172,6 +172,7 @@ interface PresupuestoContextType {
   addAIUDetailItem: (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva', item: Omit<AIUDetailItem, 'id'>) => void;
   removeAIUDetailItem: (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva', itemId: string) => void;
   editAIUDetailItem: (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva', itemId: string, data: Partial<AIUDetailItem>) => void;
+  importState: (newState: PresupuestoState) => void;
 }
 
 const PresupuestoContext = createContext<PresupuestoContextType | undefined>(undefined);
@@ -510,6 +511,10 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
     });
   };
 
+  const importState = (newState: PresupuestoState) => {
+    setState(newState);
+  };
+
   return (
     <PresupuestoContext.Provider value={{
       state, activeTab, setActiveTab, updateState, resetState, totals,
@@ -520,6 +525,7 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
       addAPUSubItem, removeAPUSubItem, editAPUSubItem,
       getAPUTotal: getAPUTotalFn,
       addAIUDetailItem, removeAIUDetailItem, editAIUDetailItem,
+      importState,
     }}>
       {children}
     </PresupuestoContext.Provider>
