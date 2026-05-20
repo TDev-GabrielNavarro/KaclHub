@@ -42,7 +42,7 @@ export const generateExcelTemplate = (state: PresupuestoState) => {
   XLSX.utils.book_append_sheet(wb, wsCaratula, 'Caratula');
 
   // 2. Anteproyecto Sheet
-  const anteproyectoData = [
+  const anteproyectoData: any[][] = [
     ['ESTUDIO / SERVICIO', 'RESPONSABLE', 'UNIDAD', 'CANTIDAD', 'VALOR UNITARIO'],
   ];
   if (state.anteproyecto && state.anteproyecto.length > 0) {
@@ -60,7 +60,7 @@ export const generateExcelTemplate = (state: PresupuestoState) => {
   XLSX.utils.book_append_sheet(wb, wsAnteproyecto, 'Anteproyecto');
 
   // 3. Presupuesto Sheet (Capítulos y Actividades)
-  const presupuestoData = [
+  const presupuestoData: any[][] = [
     ['Nº CAPÍTULO', 'NOMBRE CAPÍTULO', 'ACTIVIDAD / ITEM', 'UNIDAD', 'CANTIDAD'],
   ];
   if (state.actividades && state.actividades.length > 0) {
@@ -89,7 +89,7 @@ export const generateExcelTemplate = (state: PresupuestoState) => {
 
   // 4. APU Sheet
   // Columns: Actividad | Tipo Recurso | Descripción | Unidad | Cantidad | Valor Unitario
-  const apuData = [
+  const apuData: any[][] = [
     ['ACTIVIDAD ASOCIADA', 'TIPO RECURSO', 'DESCRIPCIÓN', 'UNIDAD', 'CANTIDAD', 'VALOR UNITARIO'],
   ];
 
@@ -158,7 +158,7 @@ export const generateExcelTemplate = (state: PresupuestoState) => {
   XLSX.utils.book_append_sheet(wb, wsAIU, 'AIU');
 
   // 6. AIU Detalles Sheet (Optional, if detail items exist)
-  const aiuDetailsData = [
+  const aiuDetailsData: any[][] = [
     ['CONCEPTO AIU', 'DESCRIPCIÓN DEL ÍTEM', 'UNIDAD', 'CANTIDAD', 'VALOR UNITARIO']
   ];
   let hasAIUDetails = false;

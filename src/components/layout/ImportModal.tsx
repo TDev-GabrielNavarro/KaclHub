@@ -11,7 +11,6 @@ import {
   RefreshCw, 
   ChevronRight,
   Database,
-  Key,
   ShieldCheck,
   Info
 } from 'lucide-react';
@@ -40,9 +39,8 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => 
     return envKey;
   });
   
-  const [showKeyInput, setShowKeyInput] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
-  const [processStep, setProcessStep] = useState<'idle' | 'reading' | 'parsing' | 'ai_fallback' | 'success' | 'error'>('idle');
+  const [processStep, setProcessStep] = useState<'idle' | 'reading' | 'parsing' | 'ai_fallback' | 'success' | 'error' | 'imported_alert'>('idle');
   const [logMessages, setLogMessages] = useState<string[]>([]);
   const [parsedData, setParsedData] = useState<any>(null);
   const [confidenceScore, setConfidenceScore] = useState<number | null>(null);
@@ -90,11 +88,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => 
     }
   };
 
-  const saveApiKey = (key: string) => {
-    setApiKey(key);
-    localStorage.setItem('kaclhub_user_gemini_key', key);
-    addLog("Clave de API guardada localmente para esta sesión.");
-  };
+
 
   // Main flow coordinator
   const processFile = async (file: File) => {
@@ -172,8 +166,7 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => 
   const executeImport = () => {
     if (!parsedData) return;
     importState(parsedData);
-    onClose();
-    alert("¡Presupuesto importado con éxito!");
+    setProcessStep('imported_alert');
   };
 
   // Helper to compute direct cost total in preview
@@ -250,50 +243,19 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => 
                 </button>
               </div>
 
-              {/* API Key Configuration Panel */}
-              <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className="p-3 bg-blue-500/10 text-blue-300 rounded-xl">
-                      <Brain size={22} />
-                    </div>
-                    <div>
-                      <h4 className="font-bold text-sm">Estructuración Inteligente por IA</h4>
-                      <p className="text-xs text-linen/50 mt-0.5">
-                        {apiKey ? "✓ IA integrada activada y lista para estructuración autónoma." : "Define GEMINI_API_KEY en tu .env o ingresa una clave aquí."}
-                      </p>
-                    </div>
+              {/* API Key Status Panel */}
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-5">
+                <div className="flex items-center gap-4">
+                  <div className="p-3 bg-primary/10 text-primary rounded-xl">
+                    <Brain size={22} />
                   </div>
-                  <button 
-                    onClick={() => setShowKeyInput(!showKeyInput)}
-                    className="text-xs text-primary font-bold uppercase tracking-wider hover:underline"
-                  >
-                    {showKeyInput ? "Ocultar" : "Configurar"}
-                  </button>
+                  <div>
+                    <h4 className="font-bold text-sm">Estructuración Inteligente por IA</h4>
+                    <p className="text-xs text-linen/50 mt-0.5">
+                      Este módulo utiliza Inteligencia Artificial (Gemini) para analizar, extraer y organizar de forma autónoma cualquier formato de presupuesto que subas.
+                    </p>
+                  </div>
                 </div>
-
-                {showKeyInput && (
-                  <div className="pt-2 flex gap-3">
-                    <div className="relative flex-1">
-                      <Key className="absolute left-3 top-3 text-linen/40" size={16} />
-                      <input
-                        type="password"
-                        placeholder="Ingresa tu Gemini API Key..."
-                        value={apiKey}
-                        onChange={(e) => saveApiKey(e.target.value)}
-                        className="w-full pl-10 pr-4 py-2.5 bg-forest border border-white/20 rounded-xl text-xs outline-none focus:border-primary placeholder:text-white/20"
-                      />
-                    </div>
-                    <a 
-                      href="https://aistudio.google.com/" 
-                      target="_blank" 
-                      rel="noreferrer"
-                      className="flex items-center gap-1 px-4 border border-white/10 hover:bg-white/5 rounded-xl text-[10px] uppercase font-bold tracking-widest text-linen/60"
-                    >
-                      Obtener Clave
-                    </a>
-                  </div>
-                )}
               </div>
 
               {/* Drag and Drop Zone */}
@@ -431,6 +393,76 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => 
             </motion.div>
           )}
 
+          {/* Imported Success / Review Warning Screen */}
+          {processStep === 'imported_alert' && (
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              className="space-y-6"
+            >
+              <div className="flex flex-col items-center text-center p-6 bg-emerald-500/10 border border-emerald-500/20 rounded-3xl space-y-4">
+                <div className="p-4 bg-emerald-500/20 text-emerald-300 rounded-full animate-bounce">
+                  <CheckCircle size={40} />
+                </div>
+                <div className="space-y-1">
+                  <h4 className="font-serif text-xl font-bold text-emerald-300">¡Presupuesto Importado con Éxito!</h4>
+                  <p className="text-xs text-linen/75 leading-relaxed">
+                    Los datos han sido incorporados al estado global de la aplicación.
+                  </p>
+                </div>
+              </div>
+
+              <div className="bg-white/5 border border-white/10 rounded-2xl p-5 space-y-4">
+                <div className="flex items-center gap-2.5 text-primary font-bold text-xs uppercase tracking-widest">
+                  <Info size={16} />
+                  <span>Recomendaciones Importantes de Revisión</span>
+                </div>
+                
+                <p className="text-xs text-linen/75 leading-relaxed">
+                  Aunque la IA de Gemini estructuró el archivo con éxito, los formatos libres de Excel pueden variar ligeramente. Para garantizar la exactitud de tu presupuesto, te recomendamos revisar estos puntos críticos:
+                </p>
+
+                <ul className="space-y-3.5 text-xs text-linen/70">
+                  <li className="flex items-start gap-3">
+                    <span className="shrink-0 flex items-center justify-center w-5 h-5 bg-white/5 border border-white/10 rounded-full font-bold text-[10px] text-primary">1</span>
+                    <div>
+                      <strong className="text-white block font-semibold mb-0.5">Completa el apartado de Caratula del proyecto</strong>
+                      Dirigete a la pestaña "Caratula del proyecto" y completa los campos que esten vacios.
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="shrink-0 flex items-center justify-center w-5 h-5 bg-white/5 border border-white/10 rounded-full font-bold text-[10px] text-primary">2</span>
+                    <div>
+                      <strong className="text-white block font-semibold mb-0.5">Revisar Actividades y Cantidades</strong>
+                      Verifica que todas las actividades del Excel estén asignadas a su capítulo correspondiente y que sus cantidades y unidades sean correctas.
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="shrink-0 flex items-center justify-center w-5 h-5 bg-white/5 border border-white/10 rounded-full font-bold text-[10px] text-primary">3</span>
+                    <div>
+                      <strong className="text-white block font-semibold mb-0.5">Validar el Desglose de APUs</strong>
+                      Ingresa a la pestaña de **APUs** en el menú principal. Asegúrate de que las actividades tengan vinculados todos sus materiales, herramientas y mano de obra con los rendimientos adecuados.
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="shrink-0 flex items-center justify-center w-5 h-5 bg-white/5 border border-white/10 rounded-full font-bold text-[10px] text-primary">4</span>
+                    <div>
+                      <strong className="text-white block font-semibold mb-0.5">Confirmar Costos Indirectos (AIU)</strong>
+                      Valida que los porcentajes de Administración (y sus detalles de personal), Imprevistos, Utilidad e IVA en la pestaña AIU correspondan exactamente a lo que requiere tu proyecto.
+                    </div>
+                  </li>
+                  <li className="flex items-start gap-3">
+                    <span className="shrink-0 flex items-center justify-center w-5 h-5 bg-white/5 border border-white/10 rounded-full font-bold text-[10px] text-primary">5</span>
+                    <div>
+                      <strong className="text-white block font-semibold mb-0.5">Genera el cronograma del proyecto entrando a la pestaña de "Cronograma"</strong>
+                      y valida que sea correcto.
+                    </div>
+                  </li>
+                </ul>
+              </div>
+            </motion.div>
+          )}
+
           {/* Error Screen */}
           {processStep === 'error' && (
             <motion.div 
@@ -468,7 +500,14 @@ export const ImportModal: React.FC<ImportModalProps> = ({ isOpen, onClose }) => 
 
         {/* Footer Actions */}
         <div className="pt-6 border-t border-white/10 flex justify-end gap-3 relative z-10 bg-forest">
-          {processStep === 'success' ? (
+          {processStep === 'imported_alert' ? (
+            <button 
+              onClick={onClose}
+              className="px-8 py-3 bg-primary text-forest hover:bg-primary-light rounded-full text-xs font-bold uppercase tracking-widest transition-all shadow-lg shadow-primary/20 flex items-center gap-2 font-bold"
+            >
+              Comenzar a Revisar <ChevronRight size={14} />
+            </button>
+          ) : processStep === 'success' ? (
             <>
               <button 
                 onClick={() => setProcessStep('idle')}

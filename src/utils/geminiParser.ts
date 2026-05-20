@@ -13,12 +13,69 @@ const cleanString = (str: any): string => {
     .toLowerCase();
 };
 
+// Helper to tokenize and clean strings for similarity checking
+const tokenizeAndClean = (str: string): string[] => {
+  return str
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '') // remove accents
+    .toLowerCase()
+    .replace(/[^a-z0-9]/g, ' ') // replace punctuation/symbols with spaces
+    .split(/\s+/)
+    .filter(word => {
+      const stopWords = ['de', 'del', 'y', 'en', 'la', 'el', 'los', 'las', 'con', 'para', 'un', 'una', 'e', 'o', 'u', 'debe', 'ser', 'a'];
+      return word.trim().length > 0 && !stopWords.includes(word);
+    });
+};
+
+// Check if two words are similar (accounting for plurals and prefixes/abbreviations)
+const isSimilarWord = (w1: string, w2: string): boolean => {
+  if (w1 === w2) return true;
+  // Plural matches (simple suffixes)
+  if (w1 + 's' === w2 || w2 + 's' === w1 || w1 + 'es' === w2 || w2 + 'es' === w1) return true;
+  // Prefix matching for abbreviations (length >= 3)
+  if (w1.length >= 3 && w2.length >= 3) {
+    if (w1.startsWith(w2) || w2.startsWith(w1)) return true;
+  }
+  return false;
+};
+
+// Calculate word overlap score between two strings
+const getWordOverlapScore = (str1: string, str2: string): number => {
+  const words1 = tokenizeAndClean(str1);
+  const words2 = tokenizeAndClean(str2);
+  
+  if (words1.length === 0 || words2.length === 0) return 0;
+  
+  let intersectionSize = 0;
+  const matchedInWords2 = new Set<number>();
+  
+  words1.forEach(w1 => {
+    // Find if there is a similar word in words2 that hasn't been matched yet
+    for (let i = 0; i < words2.length; i++) {
+      if (!matchedInWords2.has(i) && isSimilarWord(w1, words2[i])) {
+        intersectionSize++;
+        matchedInWords2.add(i);
+        break;
+      }
+    }
+  });
+  
+  const unionSize = words1.length + words2.length - intersectionSize;
+  return unionSize > 0 ? intersectionSize / unionSize : 0;
+};
+
 /**
  * Serializes all sheet data from a workbook into CSV text formats.
  */
 export const serializeWorkbookToCSV = (workbook: XLSX.WorkBook): string => {
   let excelTextContent = '';
+  // Skip database reference catalogs to optimize context length and cost
+  const skipSheets = ['materiales', 'equipos', 'transporte', 'mano de obra', 'mano_de_obra', 'db', 'database', 'catalogo'];
   workbook.SheetNames.forEach(name => {
+    const cleanName = name.toLowerCase().trim();
+    if (skipSheets.includes(cleanName)) {
+      return;
+    }
     const sheet = workbook.Sheets[name];
     const csv = XLSX.utils.sheet_to_csv(sheet);
     if (csv.trim()) {
@@ -126,7 +183,7 @@ A continuación se muestra el esquema JSON EXACTO que debes producir:
   },
   "aiuDetalles": {
     "administracion": [
-      { "descripcion": "Ingeniero Residente", "unidad": "mes", "cantidad": 6, "valorUnitario": 3500000 }
+      { "descripcion": "Ingeniero Residente", "unidad": "mes", "cantidad": 6, "valorUnitario": 3500000, "prestaciones": 1.6 }
     ],
     "imprevistos": [],
     "utilidad": [],
@@ -149,9 +206,9 @@ REGLAS DE INFERENCIA CRÍTICAS:
    - Agrúpalos en las categorías correctas en el JSON (materiales, equipos, manoDeObra, transporte, herramientas).
    - Utiliza las hojas de referencia que contienen catálogos de precios ("MATERIALES", "EQUIPOS", "TRANSPORTE", "MANO DE OBRA") para complementar o validar la descripción y el valor unitario de los insumos si fuese necesario.
 
-3. CONVERSIÓN DE PORCENTAJES DE AIU:
+3. CONVERSIÓN DE PORCENTAJES DE AIU Y DESGLOSE:
    - En la hoja "AIU", los porcentajes como "ADMINISTRACION", "IMPREVISTOS" o "UTILIDAD" pueden estar representados en formato decimal (ej. 0.1884 significa 18.84%). Multiplícalos por 100 para convertirlos en porcentajes de base 100 (ej. 18.84 en lugar de 0.1884) en el JSON.
-   - Extrae también el desglose detallado del personal administrativo o costos indirectos (ej. Director de obra, Residente, Maestro de obra, etc.) en el objeto "aiuDetalles.administracion", mapeando su unidad, cantidad, meses y valor unitario.
+   - Extrae también el desglose detallado de los rubros del AIU (ej. personal de administración, mantenimiento de oficina, etc.) en el objeto "aiuDetalles". Para cada ítem, extrae su descripción, unidad, cantidad (si la hoja separa cantidad de personas y meses, multiplica cantidad * meses para obtener la cantidad total del insumo), valor unitario, y el factor de prestaciones sociales si existe (asigna este factor al campo "prestaciones" como multiplicador decimal, ej: si indica 1.6 o 1.62 de factor, guárdalo tal cual; si no existe, guárdalo como 1.0).
 
 4. FORMATO DE SALIDA:
    - Devuelve ÚNICAMENTE un string de JSON válido. No agregues explicaciones adicionales, introducciones ni bloques de formato markdown.
@@ -162,10 +219,10 @@ REGLAS DE INFERENCIA CRÍTICAS:
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash',
       contents: [
-        { role: 'system', parts: [{ text: systemPrompt }] },
         { role: 'user', parts: [{ text: `Aquí está el contenido CSV del Excel del presupuesto:\n\n${excelCSVContent}` }] }
       ],
       config: {
+        systemInstruction: systemPrompt,
         responseMimeType: 'application/json',
         temperature: 0.1, // low temperature for precise extraction
       }
@@ -273,8 +330,34 @@ REGLAS DE INFERENCIA CRÍTICAS:
           valorManual: parseFloat(act.valorManual) || 0
         });
 
-        // Find if this activity has APU sub-items from AI
-        const aiApu = apusFromAI.get(cleanString(activityName));
+        // Find if this activity has APU sub-items from AI using fuzzy/similarity matching
+        let aiApu = null;
+        let bestScore = 0;
+        
+        if (aiParsed.apus && Array.isArray(aiParsed.apus)) {
+          for (const apu of aiParsed.apus) {
+            if (!apu.actividadNombre) continue;
+            
+            // Try exact clean match first
+            if (cleanString(apu.actividadNombre) === cleanString(activityName)) {
+              aiApu = apu;
+              bestScore = 1.0;
+              break;
+            }
+            
+            // Calculate similarity score
+            const score = getWordOverlapScore(apu.actividadNombre, activityName);
+            if (score > bestScore) {
+              bestScore = score;
+              aiApu = apu;
+            }
+          }
+        }
+        
+        // Only bind if we have a match above 0.35 similarity
+        if (bestScore < 0.35) {
+          aiApu = null;
+        }
         
         const mapSubItems = (items: any[]): APUSubItem[] => {
           if (!items || !Array.isArray(items)) return [];
@@ -343,7 +426,8 @@ REGLAS DE INFERENCIA CRÍTICAS:
         descripcion: i.descripcion || '',
         unidad: i.unidad || 'un',
         cantidad: parseFloat(i.cantidad) || 0,
-        valorUnitario: parseFloat(i.valorUnitario) || 0
+        valorUnitario: parseFloat(i.valorUnitario) || 0,
+        prestaciones: i.prestaciones !== undefined ? (parseFloat(i.prestaciones) || 1) : 1
       }));
     };
 

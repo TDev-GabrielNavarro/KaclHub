@@ -55,6 +55,7 @@ export interface AIUDetailItem {
   unidad: string;
   cantidad: number;
   valorUnitario: number;
+  prestaciones?: number;
 }
 
 export interface PresupuestoState {
@@ -234,19 +235,28 @@ export const PresupuestoProvider: React.FC<{ children: React.ReactNode }> = ({ c
 
     const totalDirecto = chapterTotals.reduce((acc, curr) => acc + curr.total, 0);
     
-    const calcCategory = (category: 'administracion' | 'imprevistos' | 'utilidad' | 'iva') => {
-      const pct = state.aiu[category] !== undefined ? state.aiu[category] : (category === 'iva' ? 19 : 0);
-      const baseCost = (totalDirecto * pct) / 100;
-      const items = state.aiuDetalles?.[category] || [];
-      const detailTotal = items.reduce((sum, item) => sum + (item.cantidad * item.valorUnitario), 0);
-      return baseCost + detailTotal;
-    };
+    // Administración: sum of detailed items if present, otherwise percentage of totalDirecto
+    const adminItems = state.aiuDetalles?.administracion || [];
+    const adminCost = adminItems.length > 0
+      ? adminItems.reduce((sum, item) => sum + (item.cantidad * item.valorUnitario * (item.prestaciones || 1)), 0)
+      : (totalDirecto * (state.aiu.administracion || 0)) / 100;
+
+    // Imprevistos and Utilidad: calculated strictly from the percentage over Costo Directo
+    const impPct = state.aiu.imprevistos !== undefined ? state.aiu.imprevistos : 0;
+    const impCost = (totalDirecto * impPct) / 100;
+
+    const utilPct = state.aiu.utilidad !== undefined ? state.aiu.utilidad : 0;
+    const utilCost = (totalDirecto * utilPct) / 100;
+
+    // IVA: calculated strictly as the percentage of the calculated Utility (Utilidad)
+    const ivaPct = state.aiu.iva !== undefined ? state.aiu.iva : 19;
+    const ivaCost = (utilCost * ivaPct) / 100;
 
     const aiu = {
-      administracion: calcCategory('administracion'),
-      imprevistos: calcCategory('imprevistos'),
-      utilidad: calcCategory('utilidad'),
-      iva: calcCategory('iva'),
+      administracion: adminCost,
+      imprevistos: impCost,
+      utilidad: utilCost,
+      iva: ivaCost,
     };
     
     const totalAIU = aiu.administracion + aiu.imprevistos + aiu.utilidad + aiu.iva;
