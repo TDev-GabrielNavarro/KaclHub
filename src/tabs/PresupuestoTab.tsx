@@ -1031,7 +1031,13 @@ const AIUCategoryBreakdown: React.FC<{
                 <div className="text-center py-4 bg-paper rounded border border-dashed border-linen">
                   <p className="text-graphite/40 text-[10px] italic mb-2">No hay componentes detallados para {label}.</p>
                   <button
-                    onClick={() => addAIUDetailItem(category, { descripcion: '', unidad: '', cantidad: 1, valorUnitario: 0 })}
+                    onClick={() => addAIUDetailItem(category, { 
+                      descripcion: '', 
+                      unidad: '', 
+                      cantidad: 1, 
+                      valorUnitario: 0,
+                      ...(category === 'administracion' ? { prestaciones: 1 } : {})
+                    })}
                     className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-[9px] font-bold text-pine bg-pine/5 hover:bg-pine hover:text-white transition-all"
                   >
                     <Plus size={10} /> Agregar primer ítem
@@ -1044,8 +1050,11 @@ const AIUCategoryBreakdown: React.FC<{
                       <tr className="border-b border-linen text-[8px] font-bold uppercase tracking-widest text-graphite/60 bg-paper">
                         <th className="px-2 py-1 w-2/5">Descripción</th>
                         <th className="px-2 py-1 w-12">Und</th>
-                        <th className="px-2 py-1 w-16 text-right">Cant</th>
-                        <th className="px-2 py-1 w-20 text-right">V. Unitario</th>
+                        <th className="px-2 py-1 w-12 text-right">Cant</th>
+                        <th className="px-2 py-1 w-16 text-right">V. Unitario</th>
+                        {category === 'administracion' && (
+                          <th className="px-2 py-1 w-14 text-right">Prestaciones</th>
+                        )}
                         <th className="px-2 py-1 w-20 text-right">Total</th>
                         <th className="px-2 py-1 w-6"></th>
                       </tr>
@@ -1085,8 +1094,21 @@ const AIUCategoryBreakdown: React.FC<{
                               className="w-16 bg-transparent outline-none text-right text-[11px] tabular-nums font-medium pr-1"
                             />
                           </td>
+                          {category === 'administracion' && (
+                            <td className="px-2 py-1 text-right">
+                              <input
+                                type="number"
+                                min="0"
+                                step="any"
+                                value={item.prestaciones ?? 1}
+                                placeholder="1.0"
+                                onChange={e => editAIUDetailItem(category, item.id, { prestaciones: parseFloat(e.target.value) || 1 })}
+                                className="w-12 bg-transparent outline-none text-right text-[11px] tabular-nums font-medium border-b border-transparent focus:border-linen"
+                              />
+                            </td>
+                          )}
                           <td className="px-2 py-1 text-right font-bold text-[11px] text-forest tabular-nums">
-                            {formatCOP(item.cantidad * item.valorUnitario)}
+                            {formatCOP(item.cantidad * item.valorUnitario * (item.prestaciones || 1))}
                           </td>
                           <td className="px-2 py-1 text-center">
                             <button
@@ -1106,7 +1128,13 @@ const AIUCategoryBreakdown: React.FC<{
               {items.length > 0 && (
                 <div className="flex justify-between items-center pt-2 border-t border-linen">
                   <button
-                    onClick={() => addAIUDetailItem(category, { descripcion: '', unidad: '', cantidad: 1, valorUnitario: 0 })}
+                    onClick={() => addAIUDetailItem(category, { 
+                      descripcion: '', 
+                      unidad: '', 
+                      cantidad: 1, 
+                      valorUnitario: 0,
+                      ...(category === 'administracion' ? { prestaciones: 1 } : {})
+                    })}
                     className="flex items-center gap-1.5 px-3 py-1 rounded-full text-[9px] font-bold text-pine bg-pine/5 hover:bg-pine hover:text-white transition-all active:scale-95"
                   >
                     <Plus size={10} /> Agregar ítem
@@ -1154,12 +1182,14 @@ const AIUSection: React.FC = () => {
               { id: 'administracion', label: 'Administración', color: 'bg-blue-50 text-blue-700', border: 'focus:border-blue-500', baseVal: totals.totalDirecto, baseLabel: 'Costo Directo' },
               { id: 'imprevistos', label: 'Imprevistos', color: 'bg-amber-50 text-amber-700', border: 'focus:border-amber-500', baseVal: totals.totalDirecto, baseLabel: 'Costo Directo' },
               { id: 'utilidad', label: 'Utilidad', color: 'bg-emerald-50 text-emerald-700', border: 'focus:border-emerald-500', baseVal: totals.totalDirecto, baseLabel: 'Costo Directo' },
-              { id: 'iva', label: 'IVA', color: 'bg-rose-50 text-rose-700', border: 'focus:border-rose-500', baseVal: totals.totalDirecto, baseLabel: 'Costo Directo' },
+              { id: 'iva', label: 'IVA', color: 'bg-rose-50 text-rose-700', border: 'focus:border-rose-500', baseVal: totals.aiu.utilidad, baseLabel: 'Utilidad' },
             ].map(item => {
               const hasBreakdown = (state.aiuDetalles?.[item.id as keyof typeof state.aiuDetalles] || []).length > 0;
-              const currentValue = state.aiu[item.id as keyof typeof state.aiu] ?? (item.id === 'iva' ? 19 : 0);
               const calculatedCost = totals.aiu[item.id as keyof typeof totals.aiu] || 0;
               const effectivePercentage = item.baseVal > 0 ? (calculatedCost / item.baseVal) * 100 : 0;
+              const currentValue = item.id === 'administracion' && hasBreakdown
+                ? parseFloat(effectivePercentage.toFixed(4))
+                : (state.aiu[item.id as keyof typeof state.aiu] ?? (item.id === 'iva' ? 19 : 0));
               
               return (
                 <div key={item.id} className="p-4 rounded-xl bg-paper border border-linen shadow-sm hover:shadow-md transition-all">
@@ -1168,9 +1198,15 @@ const AIUSection: React.FC = () => {
                       <span className={`text-[10px] font-bold uppercase tracking-widest px-2 py-0.5 rounded-full ${item.color} mb-1 inline-block`}>
                         {item.label}
                       </span>
-                      {hasBreakdown ? (
+                      {item.id === 'administracion' && hasBreakdown ? (
                         <p className="text-[9px] text-emerald-600 font-semibold flex items-center gap-1 mt-0.5">
-                          ✓ Desglose sumado al %
+                          ✓ Calculado desde desglose
+                        </p>
+                      ) : item.id === 'iva' ? (
+                        <p className="text-[9px] text-graphite font-medium">Base: {item.baseLabel} ({formatCOP(item.baseVal)})</p>
+                      ) : hasBreakdown ? (
+                        <p className="text-[9px] text-amber-600 font-medium flex items-center gap-1 mt-0.5">
+                          ⚠ Desglose referencial (Costo = % × Directo)
                         </p>
                       ) : (
                         <p className="text-[9px] text-graphite font-medium">Base: {item.baseLabel} ({formatCOP(item.baseVal)})</p>
@@ -1182,14 +1218,15 @@ const AIUSection: React.FC = () => {
                         min="0"
                         step="any"
                         value={currentValue}
+                        disabled={item.id === 'administracion' && hasBreakdown}
                         onChange={(e) => updateState(`aiu.${item.id}`, Math.max(0, parseFloat(e.target.value) || 0))}
-                        className={`w-18 px-2 py-1 text-right font-bold text-sm rounded border border-linen bg-white outline-none transition-all ${item.border} focus:ring-4 focus:ring-black/5`}
+                        className={`w-18 px-2 py-1 text-right font-bold text-sm rounded border border-linen bg-white outline-none transition-all ${item.border} focus:ring-4 focus:ring-black/5 disabled:bg-gray-100 disabled:text-gray-400`}
                       />
                       <span className="text-graphite font-bold text-xs">%</span>
                     </div>
                     <div className="w-24 text-right">
                       <p className="text-[8px] text-graphite uppercase tracking-widest mb-0.5">
-                        {hasBreakdown ? 'Efec. ' + effectivePercentage.toFixed(1) + '%' : 'Valor'}
+                        {item.id === 'administracion' && hasBreakdown ? 'Calculado' : 'Valor'}
                       </p>
                       <p className="font-bold text-forest tabular-nums text-xs">
                         {formatCOP(calculatedCost)}
@@ -1238,9 +1275,9 @@ const AIUSection: React.FC = () => {
               
               <div className="flex justify-between items-end pb-4 border-b border-white/10">
                 <span className="text-white/70">
-                  IVA
+                  IVA (sobre Utilidad)
                   <span className="text-[10px] bg-white/20 px-2 py-0.5 rounded ml-2">
-                    {((totals.aiu.iva / (totals.totalDirecto || 1)) * 100).toFixed(1)}%
+                    {((totals.aiu.iva / (totals.aiu.utilidad || 1)) * 100).toFixed(1)}%
                   </span>
                 </span>
                 <span className="font-serif text-2xl tabular-nums">
@@ -1262,8 +1299,8 @@ const AIUSection: React.FC = () => {
             <div>
               <p className="text-sm text-graphite leading-relaxed">
                 El <strong>Costo Directo</strong> representa todos los gastos intrínsecos de la obra. 
-                El <strong>A.I.U.</strong> y el <strong>IVA</strong> se calculan sobre el costo directo.
-                Puedes desglosar cada rubro detalladamente para mayor precisión; al agregar ítems a un desglose, la suma de los mismos **se sumará al valor porcentual general**.
+                El <strong>A.I.U.</strong> se calcula sobre el costo directo, mientras que el <strong>IVA</strong> se calcula sobre el valor de la <strong>Utilidad</strong>.
+                Puedes desglosar cada rubro detalladamente para mayor precisión; al agregar ítems a un desglose analítico, la suma de estos <strong>reemplazará</strong> al cálculo porcentual general (en lugar de sumarse).
               </p>
             </div>
           </div>
